@@ -200,18 +200,14 @@ static void HTMotorDecode(CANInstance *motor_can) {
 ```c
 void MotorControlTask() {
     DJIMotorControl();
-    PowerControl();
     LKMotorControl();
     // HTMotorControlInit() 在 APP 初始化时调用，创建独立任务
 }
 ```
 
-### power_control.c -- 功率限制
+### DJI 驱动内的底盘功率挂接
 
-`PowerControl()` 对底盘电机进行功率限制：
-1. 计算每个电机的初始输出功率（基于电机功率模型：`P = K1*T^2 + K2*w^2 + C*T*w + constant`）
-2. 若总功率超过 `chassis_max_power`，按比例缩放每个电机的输出力矩
-3. 通过求解二次方程计算限制后的力矩值
+所有 DJI 电机只由 `DJIMotorControl()` 控制。函数先计算全部电机的 PID 输出，再对注册的四个底盘 M3508 调用六参数功率模型完成额度分配和电流限幅，最后通过同一套 CAN 分组发送。算法实现位于 `modules/algorithm/power_model.c`。
 
 ## 调用链
 
@@ -253,4 +249,4 @@ CAN 中断:
 
 5. **编码器多圈角度假设** -- 多圈角度计算假设两次采样间电机转过的角度小于半圈（DJI 为 4096/8192，LK 为 32768/65536）。如果控制频率过低，此假设可能不成立。
 
-6. **PowerControl 与 DJIMotorControl 的关系** -- `PowerControl()` 维护自己独立的实例指针数组和发送分组，与 `DJIMotorControl()` 中的是分开的。底盘电机需通过 `PowerControlInit()` 注册而非 `DJIMotorInit()`。
+6. **底盘功率控制与 DJIMotorControl 的关系** -- 底盘电机也通过 `DJIMotorInit()` 注册，并使用 `DJIChassisPowerRegister()` 组成唯一的四电机功控组。不存在独立的底盘电机注册表或第二套 CAN 发送流程。

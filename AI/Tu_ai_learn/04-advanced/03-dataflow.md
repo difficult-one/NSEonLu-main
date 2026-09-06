@@ -77,12 +77,12 @@
            |     +-- SubRegister("chassis_feed") [单板]
            |     +-- CANCommInit()              [双板-云台板]
            |
-           +-- ChassisInit()                  chassis.c:59
-           |     +-- PowerControlInit() x4     四个 M3508 电机
-           |     |     +-- DJIMotorInit()
-           |     |           +-- MotorSenderGrouping()
-           |     |           +-- CANRegister()        <-- 首次注册触发 CANServiceInit()
-           |     |           +-- DaemonRegister()
+           +-- ChassisInit()                  chassis.c:70
+           |     +-- DJIMotorInit() x4        四个 M3508 电机
+           |     |     +-- MotorSenderGrouping()
+           |     |     +-- CANRegister()      <-- 首次注册触发 CANServiceInit()
+           |     |     +-- DaemonRegister()
+           |     +-- DJIChassisPowerRegister() 四电机功控组
            |     +-- UITaskInit()              裁判系统
            |     +-- SuperCapInit()            超级电容
            |     +-- SubRegister("chassis_cmd") [单板]

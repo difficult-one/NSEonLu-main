@@ -99,7 +99,7 @@ void ChassisInit()
         .can_init_config.can_handle = &hcan1,
         .controller_param_init_config = {
             .speed_PID = {
-                .Kp = 4.5, .Ki = 0, .Kd = 0,
+                .Kp = 0.75, .Ki = 0, .Kd = 0,
                 .MaxOut = 15000,
                 .Output_LPF_RC = 0.3,     // 低通滤波系数
             },
@@ -111,10 +111,11 @@ void ChassisInit()
         .motor_type = M3508,                     // 3508 电机
     };
 
-    // 2. 逐个注册电机（使用 PowerControlInit 替代 DJIMotorInit）
+    // 2. 逐个注册电机，并组成唯一的底盘功控组
     chassis_motor_config.can_init_config.tx_id = 1;
-    motor_lf = PowerControlInit(&chassis_motor_config);
+    motor_lf = DJIMotorInit(&chassis_motor_config);
     // ... motor_rf (tx_id=2), motor_lb (tx_id=4), motor_rb (tx_id=3)
+    DJIChassisPowerRegister(&power_config);
 
     // 3. 裁判系统初始化
     referee_data = UITaskInit(&huart6, &ui_data);
@@ -136,7 +137,7 @@ void ChassisInit()
 ```
 
 **要点**：
-- 底盘电机使用 `PowerControlInit()` 而非 `DJIMotorInit()`，因为底盘电机受功率控制模块管理，不走普通 PID 通道
+- 底盘和其他 DJI 电机都使用 `DJIMotorInit()`；底盘四电机通过 `DJIChassisPowerRegister()` 在 PID 输出后挂接功率管理
 - M3508 只用速度环，不需要角度环（底盘不关心轮子转了多少圈，只关心当前转速）
 - `Output_LPF_RC = 0.3` 对速度环输出做低通滤波，减少机械冲击
 
@@ -199,7 +200,7 @@ void ChassisTask()
 #endif
 
     // 2. 设置功率限制
-    SetPowerLimit(referee_data->GameRobotState.chassis_power_limit);
+    DJIChassisPowerSetLimit((float)referee_data->GameRobotState.chassis_power_limit);
 
     // 3. 根据模式决定是否使能电机
     if (chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE) {
@@ -269,13 +270,10 @@ RobotInit()                                       // robot.c:23
   |
   +-- ChassisInit()                               // chassis.c:59
         |
-        +-- PowerControlInit(motor_lf)            // 注册左前电机（含功率控制）
-        |     +-- DJIMotorInit()
-        |           +-- CANRegister()
-        |           +-- DaemonRegister()
-        +-- PowerControlInit(motor_rf)            // 右前
-        +-- PowerControlInit(motor_lb)            // 左后
-        +-- PowerControlInit(motor_rb)            // 右后
+        +-- DJIMotorInit(motor_lf/rf/lb/rb)       // 注册四个底盘电机
+        |     +-- CANRegister()
+        |     +-- DaemonRegister()
+        +-- DJIChassisPowerRegister()             // 组成四电机功控组
         +-- UITaskInit()                          // 裁判系统
         +-- SuperCapInit()                        // 超级电容
         +-- SubRegister("chassis_cmd")            // 订阅控制命令
@@ -291,16 +289,16 @@ RobotCMDTask() 发布 "chassis_cmd"
 ChassisTask()                                   // chassis.c:189
     |
     +-- SubGetMessage("chassis_cmd")             // 获取命令
-    +-- SetPowerLimit()                          // 设置功率上限
+    +-- DJIChassisPowerSetLimit()                // 设置功率上限
     +-- DJIMotorStop / DJIMotorEnable            // 电机启停
     +-- wz 计算（跟随/自旋/不跟随）
     +-- 坐标变换（云台系 -> 底盘系）
     +-- MecanumCalculate()                       // 四轮速度解算
-    +-- LimitChassisOutput()                     // 功率限制 + 设定参考值
-    |     +-- DJIMotorSetRef(motor_lf, vt_lf)
-    |     +-- DJIMotorSetRef(motor_rf, vt_rf)
-    |     +-- DJIMotorSetRef(motor_lb, vt_lb)
-    |     +-- DJIMotorSetRef(motor_rb, vt_rb)
+    +-- LimitChassisOutput()                     // 设置四轮速度参考值
+    |     +-- DJIMotorSetRef(motor_lf, vt_lf * 6)
+    |     +-- DJIMotorSetRef(motor_rf, vt_rf * 6)
+    |     +-- DJIMotorSetRef(motor_lb, vt_lb * 6)
+    |     +-- DJIMotorSetRef(motor_rb, vt_rb * 6)
     +-- EstimateSpeed()                          // 逆运动学估算
     +-- PubPushMessage("chassis_feed")           // 发布反馈
 
@@ -308,8 +306,7 @@ ChassisTask()                                   // chassis.c:189
 
 MotorControlTask() (1kHz)                        // motor_task.c
   |
-  +-- PowerControl()                             // 功率控制计算
-  +-- DJIMotorControl()                          // 速度环 PID + CAN 发送
+  +-- DJIMotorControl()                          // PID -> 底盘功控 -> 统一 CAN 发送
 ```
 
 ---

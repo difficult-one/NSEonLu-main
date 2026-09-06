@@ -234,7 +234,7 @@ __attribute__((noreturn)) void StartPOWERTASK(void const *argument)
 ### Step 4：实现业务逻辑
 
 ```c
-// 在 application 目录下创建 power_control.h/c
+// 在 application 目录下创建对应应用的 .h/.c 文件
 void PowerControlTask(void)
 {
     // 读取功率 → 计算限制 → 调整输出

@@ -48,4 +48,9 @@ SuperCapInstance *SuperCapInit(SuperCap_Init_Config_s *supercap_config);
  */
 void SuperCapSend(SuperCapInstance *instance, uint8_t *data);
 
+/**
+ * @brief 获取最近一次接收的超级电容状态
+ */
+SuperCap_Msg_s SuperCapGet(SuperCapInstance *instance);
+
 #endif // !SUPER_CAP_Hd

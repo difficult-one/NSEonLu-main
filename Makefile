@@ -140,6 +140,7 @@ modules/motor/step_motor/step_motor.c \
 modules/motor/servo_motor/servo_motor.c \
 modules/motor/motor_task.c \
 modules/algorithm/power_model.c \
+modules/algorithm/chassis_power_budget.c \
 modules/oled/oled.c \
 modules/referee/crc_ref.c \
 modules/referee/rm_referee.c \

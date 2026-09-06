@@ -3,6 +3,6 @@ void OnProjectLoad(void) {
   Project.SetHostIF("USB", "");
   Project.SetTargetIF("SWD");
   Project.SetTIFSpeed("4 MHz");
-  Project.SetOSPlugin("FreeRTOSPlugin_CM4");
+  Project.SetOSPlugin("FreeRTOSPlugin_Cortex-M");
   File.Open("$(ProjectDir)/build/basic_framework.elf");
 }

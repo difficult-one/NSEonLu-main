@@ -33,7 +33,7 @@
 - Consumes: the existing root `Makefile` and installed Arm GNU/Make executables.
 - Produces: VS Code tasks named `Build: firmware` and `Clean: firmware`, plus ARM-aware code completion.
 
-- [ ] **Step 1: Record the existing build baseline**
+- [x] **Step 1: Record the existing build baseline**
 
 Run:
 
@@ -49,7 +49,7 @@ build/basic_framework.hex
 build/basic_framework.bin
 ```
 
-- [ ] **Step 2: Replace obsolete workspace tool settings**
+- [x] **Step 2: Replace obsolete workspace tool settings**
 
 Keep the existing `files.associations` object and replace the obsolete Cube/OpenOCD entries in `.vscode/settings.json` with:
 
@@ -61,7 +61,7 @@ Keep the existing `files.associations` object and replace the obsolete Cube/Open
 "cortex-debug.JLinkGDBServerPath.windows": "C:\\Program Files\\SEGGER\\JLink_V938a\\JLinkGDBServerCL.exe"
 ```
 
-- [ ] **Step 3: Make IntelliSense use the cross-compiler**
+- [x] **Step 3: Make IntelliSense use the cross-compiler**
 
 Replace `.vscode/c_cpp_properties.json` with:
 
@@ -95,7 +95,7 @@ Replace `.vscode/c_cpp_properties.json` with:
 }
 ```
 
-- [ ] **Step 4: Define direct-process build tasks**
+- [x] **Step 4: Define direct-process build tasks**
 
 Replace `.vscode/tasks.json` with strict JSON containing these two initial tasks:
 
@@ -137,7 +137,7 @@ Replace `.vscode/tasks.json` with strict JSON containing these two initial tasks
 }
 ```
 
-- [ ] **Step 5: Validate JSON and rebuild through the configured executables**
+- [x] **Step 5: Validate JSON and rebuild through the configured executables**
 
 Run:
 
@@ -150,7 +150,7 @@ Get-Content -Raw .vscode\tasks.json | ConvertFrom-Json | Out-Null
 
 Expected: all JSON parses, Make exits `0`, and no compiler error or warning is emitted.
 
-- [ ] **Step 6: Commit the build workspace configuration**
+- [x] **Step 6: Commit the build workspace configuration**
 
 ```powershell
 git add -- .vscode/settings.json .vscode/c_cpp_properties.json .vscode/tasks.json
@@ -170,7 +170,7 @@ git commit -m "build: configure Arm GNU workspace"
 - Consumes: task `Build: firmware` and `build/basic_framework.elf` from Task 1.
 - Produces: task `Flash: J-Link`, debug configurations `J-Link: Build and debug` and `J-Link: Attach`.
 
-- [ ] **Step 1: Add the J-Link Commander script**
+- [x] **Step 1: Add the J-Link Commander script**
 
 Create `scripts/flash.jlink`:
 
@@ -186,7 +186,7 @@ exit
 
 The explicit `verifybin` command makes verification visible even though `loadfile` already checks programming errors.
 
-- [ ] **Step 2: Add the sequential build-and-flash task**
+- [x] **Step 2: Add the sequential build-and-flash task**
 
 Append this task to `.vscode/tasks.json`:
 
@@ -215,7 +215,7 @@ Append this task to `.vscode/tasks.json`:
 
 `-ExitOnError 1` makes Commander fail fast and return a failing process status when a script command fails. `-NoGui 1` keeps the task non-interactive so it cannot be blocked by a GUI dialog. Together they enforce fail-fast/no-GUI execution.
 
-- [ ] **Step 3: Replace the mixed-probe launch list with J-Link launch and attach**
+- [x] **Step 3: Replace the mixed-probe launch list with J-Link launch and attach**
 
 Replace `.vscode/launch.json` with:
 
@@ -263,7 +263,7 @@ Replace `.vscode/launch.json` with:
 }
 ```
 
-- [ ] **Step 4: Validate configuration fields against the installed extension**
+- [x] **Step 4: Validate configuration fields against the installed extension**
 
 Run:
 
@@ -288,7 +288,7 @@ Before this step, ensure the robot's wheels, launcher, and other actuators canno
 
 Expected: J-Link runs in no-GUI mode, identifies the Cortex-M4 target, programs `basic_framework.elf`, `verifybin` reports success, and exits with code `0`. A Commander script error triggers fail-fast behavior and returns a nonzero process status. If the board is unavailable or unsafe to run, record this single check as pending instead of treating it as passed.
 
-- [ ] **Step 6: Commit the J-Link configuration**
+- [x] **Step 6: Commit the J-Link configuration**
 
 ```powershell
 git add -- scripts/flash.jlink .vscode/tasks.json .vscode/launch.json
@@ -307,7 +307,7 @@ git commit -m "build: add J-Link flash and debug tasks"
 - Consumes: task `Build: firmware` and `build/basic_framework.elf` from Task 1.
 - Produces: task `Debug: Ozone` and a reusable Ozone project for STM32F407IG/FreeRTOS.
 
-- [ ] **Step 1: Add the Ozone project script**
+- [x] **Step 1: Add the Ozone project script**
 
 Create `debug_ozone.jdebug`:
 
@@ -317,12 +317,12 @@ void OnProjectLoad(void) {
   Project.SetHostIF("USB", "");
   Project.SetTargetIF("SWD");
   Project.SetTIFSpeed("4 MHz");
-  Project.SetOSPlugin("FreeRTOSPlugin_CM4");
+  Project.SetOSPlugin("FreeRTOSPlugin_Cortex-M");
   File.Open("$(ProjectDir)/build/basic_framework.elf");
 }
 ```
 
-- [ ] **Step 2: Add the Ozone launch task**
+- [x] **Step 2: Add the Ozone launch task**
 
 Append this task to `.vscode/tasks.json`:
 
@@ -341,7 +341,7 @@ Append this task to `.vscode/tasks.json`:
 }
 ```
 
-- [ ] **Step 3: Validate all tracked configuration and perform a clean build**
+- [x] **Step 3: Validate all tracked configuration and perform a clean build**
 
 Run:
 
@@ -364,7 +364,7 @@ Expected: all JSON parses; Ozone exists; the clean rebuild exits `0`; ELF, HEX, 
 
 Run the VS Code task `Debug: Ozone`, then in Ozone select Download & Reset and verify that symbols are loaded, `main` is available, and the FreeRTOS task view opens. If the target is unavailable, verify that Ozone loads the ELF and project settings offline and record hardware connection as pending.
 
-- [ ] **Step 5: Commit the Ozone integration**
+- [x] **Step 5: Commit the Ozone integration**
 
 ```powershell
 git add -- debug_ozone.jdebug .vscode/tasks.json docs/superpowers/plans/2026-09-06-stm32-jlink-development-environment.md

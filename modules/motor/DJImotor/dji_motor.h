@@ -20,6 +20,7 @@
 #include "motor_def.h"
 #include "stdint.h"
 #include "daemon.h"
+#include "power_model.h"
 
 #define DJI_MOTOR_CNT 12
 
@@ -64,6 +65,19 @@ typedef struct
     uint32_t feed_cnt;
     float dt;
 } DJIMotorInstance;
+
+typedef struct
+{
+    DJIMotorInstance *motors[POWER_MODEL_MOTOR_COUNT];
+    MotorPowerModelConfig_s models[POWER_MODEL_MOTOR_COUNT];
+    ChassisPowerAlgorithmConfig_s algorithm;
+} DJIChassisPowerConfig_s;
+
+typedef struct
+{
+    bool registered;
+    ChassisPowerOutput_s power;
+} DJIChassisPowerState_s;
 
 /**
  * @brief 调用此函数注册一个DJI智能电机,需要传递较多的初始化参数,请在application初始化的时候调用此函数
@@ -126,5 +140,25 @@ void DJIMotorEnable(DJIMotorInstance *motor);
  * @param outer_loop 外层闭环类型
  */
 void DJIMotorOuterLoop(DJIMotorInstance *motor, Closeloop_Type_e outer_loop);
+
+/**
+ * @brief 注册唯一的四电机底盘功率管理组
+ */
+bool DJIChassisPowerRegister(const DJIChassisPowerConfig_s *config);
+
+/**
+ * @brief 更新裁判系统给出的底盘功率上限，单位 W
+ */
+void DJIChassisPowerSetLimit(float referee_power_limit_w);
+
+/**
+ * @brief 更新超级电容衰减系数，算法内部限制到 [0, 1]
+ */
+void DJIChassisPowerSetAttenuation(float attenuation);
+
+/**
+ * @brief 获取只读功率控制诊断状态
+ */
+const DJIChassisPowerState_s *DJIChassisPowerGetState(void);
 
 #endif // !DJI_MOTOR_H

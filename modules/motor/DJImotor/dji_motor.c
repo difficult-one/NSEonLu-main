@@ -3,6 +3,10 @@
 #include "bsp_dwt.h"
 #include "bsp_log.h"
 
+#include <math.h>
+
+_Static_assert(POWER_MODEL_MOTOR_COUNT == 4U, "DJI chassis power group must contain four motors");
+
 static uint8_t idx = 0; // register idx,是该文件的全局电机索引,在注册时使用
 /* DJI电机的实例,此处仅保存指针,内存的分配将通过电机实例初始化时通过malloc()进行 */
 static DJIMotorInstance *dji_motor_instance[DJI_MOTOR_CNT] = {NULL}; // 会在control任务中遍历该指针数组进行pid计算
@@ -33,6 +37,24 @@ static CANInstance sender_assignment[6] = {
  *        flag的初始化在 MotorSenderGrouping()中进行
  */
 static uint8_t sender_enable_flag[6] = {0};
+
+typedef struct
+{
+    bool registered;
+    uint8_t motor_indices[POWER_MODEL_MOTOR_COUNT];
+    MotorPowerModelConfig_s models[POWER_MODEL_MOTOR_COUNT];
+    ChassisPowerAlgorithmConfig_s algorithm;
+    ChassisPowerInput_s input;
+    DJIChassisPowerState_s state;
+} DJIChassisPowerGroup_s;
+
+static DJIChassisPowerGroup_s chassis_power_group = {
+    .input.attenuation = 1.0f,
+};
+
+static float motor_output[DJI_MOTOR_CNT];
+static float speed_reference_aps[DJI_MOTOR_CNT];
+static float speed_feedback_aps[DJI_MOTOR_CNT];
 
 /**
  * @brief 根据电调/拨码开关上的ID,根据说明书的默认id分配方式计算发送ID和接收ID,
@@ -229,42 +251,133 @@ void DJIMotorSetRef(DJIMotorInstance *motor, float ref)
     motor->motor_controller.pid_ref = ref;
 }
 
+static bool FindDJIMotorIndex(const DJIMotorInstance *motor, uint8_t *motor_index)
+{
+    for (uint8_t i = 0; i < idx; ++i)
+    {
+        if (dji_motor_instance[i] == motor)
+        {
+            *motor_index = i;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool DJIChassisPowerRegister(const DJIChassisPowerConfig_s *config)
+{
+    uint8_t motor_indices[POWER_MODEL_MOTOR_COUNT];
+
+    if (config == NULL || chassis_power_group.registered ||
+        !ChassisPowerAlgorithmConfigIsValid(&config->algorithm))
+        return false;
+
+    for (size_t i = 0; i < POWER_MODEL_MOTOR_COUNT; ++i)
+    {
+        if (config->motors[i] == NULL || config->motors[i]->motor_type != M3508 ||
+            !PowerModelConfigIsValid(&config->models[i]) ||
+            !FindDJIMotorIndex(config->motors[i], &motor_indices[i]))
+            return false;
+
+        for (size_t j = 0; j < i; ++j)
+        {
+            if (config->motors[i] == config->motors[j])
+                return false;
+        }
+    }
+
+    for (size_t i = 0; i < POWER_MODEL_MOTOR_COUNT; ++i)
+    {
+        chassis_power_group.motor_indices[i] = motor_indices[i];
+        chassis_power_group.models[i] = config->models[i];
+    }
+    chassis_power_group.algorithm = config->algorithm;
+    chassis_power_group.input.referee_power_limit_w = 0.0f;
+    chassis_power_group.input.attenuation = 1.0f;
+    memset(&chassis_power_group.state.power, 0, sizeof(chassis_power_group.state.power));
+    chassis_power_group.state.registered = true;
+    chassis_power_group.registered = true;
+    return true;
+}
+
+void DJIChassisPowerSetLimit(float referee_power_limit_w)
+{
+    chassis_power_group.input.referee_power_limit_w = referee_power_limit_w;
+}
+
+void DJIChassisPowerSetAttenuation(float attenuation)
+{
+    chassis_power_group.input.attenuation = attenuation;
+}
+
+const DJIChassisPowerState_s *DJIChassisPowerGetState(void)
+{
+    return &chassis_power_group.state;
+}
+
+static void ApplyChassisPowerGroup(void)
+{
+    if (!chassis_power_group.registered)
+        return;
+
+    for (size_t slot = 0; slot < POWER_MODEL_MOTOR_COUNT; ++slot)
+    {
+        const uint8_t index = chassis_power_group.motor_indices[slot];
+        chassis_power_group.input.desired_current[slot] = motor_output[index];
+        chassis_power_group.input.speed_rpm[slot] = speed_feedback_aps[index] / 6.0f;
+        chassis_power_group.input.speed_error_rpm[slot] =
+            (speed_reference_aps[index] - speed_feedback_aps[index]) / 6.0f;
+    }
+
+    const bool power_valid = PowerModelApply(chassis_power_group.models,
+                                             &chassis_power_group.algorithm,
+                                             &chassis_power_group.input,
+                                             &chassis_power_group.state.power);
+
+    for (size_t slot = 0; slot < POWER_MODEL_MOTOR_COUNT; ++slot)
+    {
+        const uint8_t index = chassis_power_group.motor_indices[slot];
+        DJIMotorInstance *motor = dji_motor_instance[index];
+        motor_output[index] = power_valid && DaemonIsOnline(motor->daemon)
+                                  ? chassis_power_group.state.power.limited_current[slot]
+                                  : 0.0f;
+    }
+}
+
 // 为所有电机实例计算三环PID,发送控制报文
 void DJIMotorControl()
 {
-    // 直接保存一次指针引用从而减小访存的开销,同样可以提高可读性
-    uint8_t group, num; // 电机组号和组内编号
-    int16_t set;        // 电机控制CAN发送设定值
+    uint8_t group, num;
+    int16_t set;
     DJIMotorInstance *motor;
-    Motor_Control_Setting_s *motor_setting; // 电机控制参数
-    Motor_Controller_s *motor_controller;   // 电机控制器
-    DJI_Motor_Measure_s *measure;           // 电机测量值
-    float pid_measure, pid_ref;             // 电机PID测量值和设定值
+    Motor_Control_Setting_s *motor_setting;
+    Motor_Controller_s *motor_controller;
+    DJI_Motor_Measure_s *measure;
+    float pid_measure, pid_ref;
 
-    // 遍历所有电机实例,进行串级PID的计算并设置发送报文的值
+    // 第一阶段：计算所有 DJI 电机的原始输出，暂不写入 CAN 缓冲区。
     for (size_t i = 0; i < idx; ++i)
-    { // 减小访存开销,先保存指针引用
+    {
         motor = dji_motor_instance[i];
         motor_setting = &motor->motor_settings;
         motor_controller = &motor->motor_controller;
         measure = &motor->measure;
-        pid_ref = motor_controller->pid_ref; // 保存设定值,防止motor_controller->pid_ref在计算过程中被修改
-        if (motor_setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
-            pid_ref *= -1; // 设置反转
+        pid_ref = motor_controller->pid_ref;
+        speed_reference_aps[i] = 0.0f;
+        speed_feedback_aps[i] = 0.0f;
 
-        // pid_ref会顺次通过被启用的闭环充当数据的载体
-        // 计算位置环,只有启用位置环且外层闭环为位置时会计算速度环输出
+        if (motor_setting->motor_reverse_flag == MOTOR_DIRECTION_REVERSE)
+            pid_ref *= -1;
+
         if ((motor_setting->close_loop_type & ANGLE_LOOP) && motor_setting->outer_loop_type == ANGLE_LOOP)
         {
             if (motor_setting->angle_feedback_source == OTHER_FEED)
                 pid_measure = *motor_controller->other_angle_feedback_ptr;
             else
-                pid_measure = measure->total_angle; // MOTOR_FEED,对total angle闭环,防止在边界处出现突跃
-            // 更新pid_ref进入下一个环
+                pid_measure = measure->total_angle;
             pid_ref = PIDCalculate(&motor_controller->angle_PID, pid_measure, pid_ref);
         }
 
-        // 计算速度环,(外层闭环为速度或位置)且(启用速度环)时会计算速度环
         if ((motor_setting->close_loop_type & SPEED_LOOP) && (motor_setting->outer_loop_type & (ANGLE_LOOP | SPEED_LOOP)))
         {
             if (motor_setting->feedforward_flag & SPEED_FEEDFORWARD)
@@ -272,38 +385,42 @@ void DJIMotorControl()
 
             if (motor_setting->speed_feedback_source == OTHER_FEED)
                 pid_measure = *motor_controller->other_speed_feedback_ptr;
-            else // MOTOR_FEED
+            else
                 pid_measure = measure->speed_aps;
-            // 更新pid_ref进入下一个环
+
+            speed_reference_aps[i] = pid_ref;
+            speed_feedback_aps[i] = pid_measure;
             pid_ref = PIDCalculate(&motor_controller->speed_PID, pid_measure, pid_ref);
         }
 
-        // 计算电流环,目前只要启用了电流环就计算,不管外层闭环是什么,并且电流只有电机自身传感器的反馈
         if (motor_setting->feedforward_flag & CURRENT_FEEDFORWARD)
             pid_ref += *motor_controller->current_feedforward_ptr;
         if (motor_setting->close_loop_type & CURRENT_LOOP)
-        {
             pid_ref = PIDCalculate(&motor_controller->current_PID, measure->real_current, pid_ref);
-        }
 
         if (motor_setting->feedback_reverse_flag == FEEDBACK_DIRECTION_REVERSE)
             pid_ref *= -1;
 
-        // 获取最终输出
-        set = (int16_t)pid_ref;
+        motor_output[i] = isfinite(pid_ref) ? pid_ref : 0.0f;
+    }
 
-        // 分组填入发送数据
+    // 第二阶段：只修改已注册的四个底盘电机输出。
+    ApplyChassisPowerGroup();
+
+    // 第三阶段：所有 DJI 电机共用同一套 CAN 打包和发送路径。
+    for (size_t i = 0; i < idx; ++i)
+    {
+        motor = dji_motor_instance[i];
+        set = (int16_t)motor_output[i];
         group = motor->sender_group;
         num = motor->message_num;
         sender_assignment[group].tx_buff[2 * num] = (uint8_t)(set >> 8);         // 低八位
         sender_assignment[group].tx_buff[2 * num + 1] = (uint8_t)(set & 0x00ff); // 高八位
 
-        // 若该电机处于停止状态,直接将buff置零
         if (motor->stop_flag == MOTOR_STOP)
             memset(sender_assignment[group].tx_buff + 2 * num, 0, sizeof(uint16_t));
     }
 
-    // 遍历flag,检查是否要发送这一帧报文
     for (size_t i = 0; i < 6; ++i)
     {
         if (sender_enable_flag[i])

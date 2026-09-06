@@ -1,0 +1,7 @@
+halt
+reset
+loadfile build/basic_framework.elf
+verifybin build/basic_framework.bin 0x08000000
+reset
+go
+exit

@@ -88,6 +88,26 @@ static float Sum4(const float values[POWER_MODEL_MOTOR_COUNT])
     return sum;
 }
 
+static void TestDisabledBenchFallbackPreservesInvalidLimit(void)
+{
+    ASSERT_NEAR(0.0f, PowerModelSelectLimit(0.0f, 0.0f), 1.0e-6f);
+}
+
+static void TestBenchFallbackReplacesInvalidRefereeLimit(void)
+{
+    ASSERT_NEAR(40.0f, PowerModelSelectLimit(NAN, 40.0f), 1.0e-6f);
+}
+
+static void TestRefereeLimitHasPriorityOverBenchFallback(void)
+{
+    ASSERT_NEAR(80.0f, PowerModelSelectLimit(80.0f, 40.0f), 1.0e-6f);
+}
+
+static void TestInvalidBenchFallbackIsIgnored(void)
+{
+    ASSERT_NEAR(0.0f, PowerModelSelectLimit(0.0f, -40.0f), 1.0e-6f);
+}
+
 static void TestPredictionMatchesPolynomial(void)
 {
     const float actual = PowerModelPredict(&m3508_model, 5000.0f, 3000.0f);
@@ -306,6 +326,10 @@ static void TestInvalidConfigurationIsRejected(void)
 
 int main(void)
 {
+    TestDisabledBenchFallbackPreservesInvalidLimit();
+    TestBenchFallbackReplacesInvalidRefereeLimit();
+    TestRefereeLimitHasPriorityOverBenchFallback();
+    TestInvalidBenchFallbackIsIgnored();
     TestPredictionMatchesPolynomial();
     TestSmallErrorEvenlySplitsBudget();
     TestLargeErrorUsesReservedPower();

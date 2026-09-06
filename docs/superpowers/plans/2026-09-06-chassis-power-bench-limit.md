@@ -27,10 +27,10 @@
 **Interfaces:**
 - Produces: `float PowerModelSelectLimit(float referee_limit_w, float fallback_limit_w)`
 
-- [ ] Add tests asserting `0` fallback remains invalid, `40.0f` is selected for an invalid referee limit, and a positive referee limit overrides `40.0f`.
-- [ ] Run `make -C tests/power_model clean test` and verify link failure because `PowerModelSelectLimit` is missing.
-- [ ] Implement the minimal finite-positive selection rule.
-- [ ] Run `make -C tests/power_model clean test` and verify all tests pass.
+- [x] Add tests asserting `0` fallback remains invalid, `40.0f` is selected for an invalid referee limit, and a positive referee limit overrides `40.0f`.
+- [x] Run `make -C tests/power_model clean test` and verify compilation fails because `PowerModelSelectLimit` is missing.
+- [x] Implement the minimal finite-positive selection rule.
+- [x] Run `make -C tests/power_model clean test` and verify all tests pass.
 
 ### Task 2: Add the compile-time gate and integrate it
 
@@ -42,7 +42,7 @@
 **Interfaces:**
 - Consumes: `PowerModelSelectLimit(float referee_limit_w, float fallback_limit_w)`
 
-- [ ] Define `CHASSIS_POWER_BENCH_TEST 0` and `CHASSIS_POWER_BENCH_LIMIT_W 40.0f` with safety comments.
-- [ ] In `ChassisTask`, pass `0.0f` as fallback when disabled and the configured limit when enabled.
-- [ ] Document how to enable bench mode, rebuild, test with lifted wheels, and disable it again.
-- [ ] Run the host tests and a clean full firmware build.
+- [x] Define `CHASSIS_POWER_BENCH_TEST 0` and `CHASSIS_POWER_BENCH_LIMIT_W 40.0f` with safety comments.
+- [x] In `ChassisTask`, pass `0.0f` as fallback when disabled and the configured limit when enabled.
+- [x] Document how to enable bench mode, rebuild, test with lifted wheels, and disable it again.
+- [x] Run the host tests plus clean full firmware builds with bench mode enabled and disabled.

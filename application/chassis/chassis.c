@@ -226,7 +226,14 @@ void ChassisTask()
     chassis_cmd_recv = *(Chassis_Ctrl_Cmd_s *)CANCommGet(chasiss_can_comm);
 #endif // CHASSIS_BOARD
 
-    DJIChassisPowerSetLimit((float)referee_data->GameRobotState.chassis_power_limit);
+    float bench_power_limit_w = 0.0f;
+#if CHASSIS_POWER_BENCH_TEST
+    bench_power_limit_w = CHASSIS_POWER_BENCH_LIMIT_W;
+#endif
+    const float chassis_power_limit_w = PowerModelSelectLimit(
+        (float)referee_data->GameRobotState.chassis_power_limit,
+        bench_power_limit_w);
+    DJIChassisPowerSetLimit(chassis_power_limit_w);
     if (!chassis_power_ready || chassis_cmd_recv.chassis_mode == CHASSIS_ZERO_FORCE)
     { // 如果出现重要模块离线或遥控器设置为急停,让电机停止
         DJIMotorStop(motor_lf);

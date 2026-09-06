@@ -44,6 +44,15 @@ bool ChassisPowerAlgorithmConfigIsValid(const ChassisPowerAlgorithmConfig_s *con
            config->max_current_command > 0.0f;
 }
 
+float PowerModelSelectLimit(float referee_limit_w, float fallback_limit_w)
+{
+    if (isfinite(referee_limit_w) && referee_limit_w > 0.0f)
+        return referee_limit_w;
+    if (isfinite(fallback_limit_w) && fallback_limit_w > 0.0f)
+        return fallback_limit_w;
+    return referee_limit_w;
+}
+
 float PowerModelPredict(const MotorPowerModelConfig_s *config,
                         float current_command,
                         float speed_rpm)

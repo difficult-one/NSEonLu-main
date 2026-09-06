@@ -57,6 +57,7 @@ typedef struct
 
 bool PowerModelConfigIsValid(const MotorPowerModelConfig_s *config);
 bool ChassisPowerAlgorithmConfigIsValid(const ChassisPowerAlgorithmConfig_s *config);
+float PowerModelSelectLimit(float referee_limit_w, float fallback_limit_w);
 float PowerModelPredict(const MotorPowerModelConfig_s *config,
                         float current_command,
                         float speed_rpm);

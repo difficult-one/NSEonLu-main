@@ -24,6 +24,21 @@
 #define VISION_USE_VCP  // 使用虚拟串口发送视觉数据
 // #define VISION_USE_UART // 使用串口发送视觉数据
 
+/*
+ * 底盘台架功率回退。正式固件必须保持为 0；仅在车轮架空调试且没有裁判系统时设为 1。
+ * 启用后，只有裁判系统未给出有效正功率上限时才使用 CHASSIS_POWER_BENCH_LIMIT_W。
+ */
+#ifndef CHASSIS_POWER_BENCH_TEST
+#define CHASSIS_POWER_BENCH_TEST 0
+#endif
+#ifndef CHASSIS_POWER_BENCH_LIMIT_W
+#define CHASSIS_POWER_BENCH_LIMIT_W 40.0f
+#endif
+
+#if CHASSIS_POWER_BENCH_TEST != 0 && CHASSIS_POWER_BENCH_TEST != 1
+#error CHASSIS_POWER_BENCH_TEST must be 0 or 1.
+#endif
+
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
 // 云台参数
 #define YAW_CHASSIS_ALIGN_ECD 2711  // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改

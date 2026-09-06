@@ -1,44 +1,97 @@
-/*
- * @Descripttion:
- * @version:
- * @Author: Chenfu
- * @Date: 2022-12-02 21:32:47
- * @LastEditTime: 2022-12-05 15:29:49
- */
 #include "super_cap.h"
-#include "memory.h"
-#include "stdlib.h"
 
-static SuperCapInstance *super_cap_instance = NULL; // 可以由app保存此指针
+#include "FreeRTOS.h"
+#include "task.h"
 
-static void SuperCapRxCallback(CANInstance *_instance)
+#include <stdlib.h>
+#include <string.h>
+
+#define SUPERCAP_DEFAULT_OFFLINE_RELOAD_COUNT 20U
+
+static void SuperCapOffline(void *owner)
 {
-    uint8_t *rxbuff;
-    SuperCap_Msg_s *Msg;
-    rxbuff = _instance->rx_buff;
-    Msg = &super_cap_instance->cap_msg;
-    Msg->vol = (uint16_t)(rxbuff[0] << 8 | rxbuff[1]);
-    Msg->current = (uint16_t)(rxbuff[2] << 8 | rxbuff[3]);
-    Msg->power = (uint16_t)(rxbuff[4] << 8 | rxbuff[5]);
+    SuperCapInstance *instance = (SuperCapInstance *)owner;
+    if (instance == NULL)
+        return;
+
+    taskENTER_CRITICAL();
+    instance->status.online = false;
+    taskEXIT_CRITICAL();
 }
 
-SuperCapInstance *SuperCapInit(SuperCap_Init_Config_s *supercap_config)
+static void SuperCapRxCallback(CANInstance *can_instance)
 {
-    super_cap_instance = (SuperCapInstance *)malloc(sizeof(SuperCapInstance));
-    memset(super_cap_instance, 0, sizeof(SuperCapInstance));
-    
-    supercap_config->can_config.can_module_callback = SuperCapRxCallback;
-    super_cap_instance->can_ins = CANRegister(&supercap_config->can_config);
-    return super_cap_instance;
+    if (can_instance == NULL)
+        return;
+
+    SuperCapInstance *instance = (SuperCapInstance *)can_instance->id;
+    SuperCapStatus_s decoded;
+    if (instance == NULL ||
+        !SuperCapProtocolDecodeStatus(can_instance->rx_buff,
+                                      can_instance->rx_len,
+                                      &decoded))
+        return;
+
+    instance->status = decoded;
+    DaemonReload(instance->daemon);
 }
 
-void SuperCapSend(SuperCapInstance *instance, uint8_t *data)
+SuperCapInstance *SuperCapInit(const SuperCap_Init_Config_s *config)
 {
-    memcpy(instance->can_ins->tx_buff, data, 8);
-    CANTransmit(instance->can_ins,1);
+    if (config == NULL)
+        return NULL;
+
+    SuperCapInstance *instance = (SuperCapInstance *)malloc(sizeof(SuperCapInstance));
+    if (instance == NULL)
+        return NULL;
+    memset(instance, 0, sizeof(*instance));
+
+    const uint16_t reload_count = config->offline_reload_count == 0U
+                                      ? SUPERCAP_DEFAULT_OFFLINE_RELOAD_COUNT
+                                      : config->offline_reload_count;
+    Daemon_Init_Config_s daemon_config = {
+        .reload_count = reload_count,
+        .init_count = reload_count,
+        .callback = SuperCapOffline,
+        .owner_id = instance,
+    };
+    instance->daemon = DaemonRegister(&daemon_config);
+    if (instance->daemon == NULL)
+    {
+        free(instance);
+        return NULL;
+    }
+
+    CAN_Init_Config_s can_config = config->can_config;
+    can_config.can_module_callback = SuperCapRxCallback;
+    can_config.id = instance;
+    instance->can_ins = CANRegister(&can_config);
+    if (instance->can_ins == NULL)
+        return NULL;
+
+    CANSetDLC(instance->can_ins, SUPERCAP_CAN_DLC);
+    return instance;
 }
 
-SuperCap_Msg_s SuperCapGet(SuperCapInstance *instance)
+bool SuperCapSendCommand(SuperCapInstance *instance,
+                         const SuperCapCommand_s *command)
 {
-    return instance->cap_msg;
+    if (instance == NULL || instance->can_ins == NULL ||
+        !SuperCapProtocolEncodeCommand(command, instance->can_ins->tx_buff))
+        return false;
+
+    return CANTransmit(instance->can_ins, 1.0f) != 0U;
+}
+
+bool SuperCapGetStatus(SuperCapInstance *instance,
+                       SuperCapStatus_s *status)
+{
+    if (instance == NULL || status == NULL || instance->daemon == NULL)
+        return false;
+
+    taskENTER_CRITICAL();
+    *status = instance->status;
+    status->online = status->online && DaemonIsOnline(instance->daemon) != 0U;
+    taskEXIT_CRITICAL();
+    return true;
 }

@@ -200,6 +200,8 @@ Append this task to `.vscode/tasks.json`:
         "-if", "SWD",
         "-speed", "4000",
         "-autoconnect", "1",
+        "-ExitOnError", "1",
+        "-NoGui", "1",
         "-CommanderScript", "${workspaceFolder}\\scripts\\flash.jlink"
     ],
     "options": {
@@ -210,6 +212,8 @@ Append this task to `.vscode/tasks.json`:
     "problemMatcher": []
 }
 ```
+
+`-ExitOnError 1` makes Commander fail fast and return a failing process status when a script command fails. `-NoGui 1` keeps the task non-interactive so it cannot be blocked by a GUI dialog. Together they enforce fail-fast/no-GUI execution.
 
 - [ ] **Step 3: Replace the mixed-probe launch list with J-Link launch and attach**
 
@@ -279,10 +283,10 @@ Expected: JSON parsing succeeds, each configuration property is present in the e
 Before this step, ensure the robot's wheels, launcher, and other actuators cannot move unexpectedly. Then run:
 
 ```powershell
-& 'C:\Program Files\SEGGER\JLink_V938a\JLink.exe' -device STM32F407IG -if SWD -speed 4000 -autoconnect 1 -CommanderScript scripts\flash.jlink
+& 'C:\Program Files\SEGGER\JLink_V938a\JLink.exe' -device STM32F407IG -if SWD -speed 4000 -autoconnect 1 -ExitOnError 1 -NoGui 1 -CommanderScript scripts\flash.jlink
 ```
 
-Expected: J-Link identifies the Cortex-M4 target, programs `basic_framework.elf`, `verifybin` reports success, and exits with code `0`. If the board is unavailable or unsafe to run, record this single check as pending instead of treating it as passed.
+Expected: J-Link runs in no-GUI mode, identifies the Cortex-M4 target, programs `basic_framework.elf`, `verifybin` reports success, and exits with code `0`. A Commander script error triggers fail-fast behavior and returns a nonzero process status. If the board is unavailable or unsafe to run, record this single check as pending instead of treating it as passed.
 
 - [ ] **Step 6: Commit the J-Link configuration**
 

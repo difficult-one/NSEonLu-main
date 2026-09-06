@@ -40,6 +40,8 @@
                 "-if", "SWD",
                 "-speed", "4000",
                 "-autoconnect", "1",
+                "-ExitOnError", "1",
+                "-NoGui", "1",
                 "-CommanderScript", "${workspaceFolder}\\scripts\\flash.jlink"
             ],
             "options": {

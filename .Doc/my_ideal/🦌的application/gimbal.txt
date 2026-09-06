@@ -1,0 +1,21 @@
+.c
+全局变量
+attibute_t *gimbal_IMU_data
+DJIMotorInstance *yaw_motor,*pitch_motor;
+
+publisher_t *gmibal_pub
+subscriber_t *gimbal_sub
+gimbal_upload_data_s gimbal_feedback_data
+gimbal_ctrl_cmd_s gimbal_cmd_recv
+
+
+公有函数
+void gimbalinit()
+s1:IMU初始化
+s2：yaw，pitch电机初始化
+s3：消息中心订阅与公开
+void_gimbal_task()
+s1:接受云台控制数据
+s2:根据控制模式给出响应
+s3:反馈云台（yaw的ecd）和IMU数据
+

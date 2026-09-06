@@ -1,0 +1,65 @@
+.h
+
+enum
+usart_transfei_mode
+	{none
+	blocking
+	dma
+	it
+	}
+
+struct
+usart_instance
+	{recev_buff
+	ecev buffsize
+	usart handle
+	module callback
+	}
+
+struct
+usart init config_s
+	{recev size 
+	usarthandle
+	moudlecallback
+	}
+
+函数
+usart instance*usartregister（usart initconfigs）；
+void usartserviceinit（usartinstance）；
+usartsend（usartinstance send_buff，send size mode)；
+usart is ready(usart instance)；
+
+
+.c
+全局变量
+uint8_t idx 表示注册的实例数
+uisartinstance *usart_insatance[device_cnt]={null} dsp层usart设备实例数组
+
+usartserviceinit(usart_instance) 初始化实例后，开启实例服务
+S1:开启空闲接收DMA中断
+S2:关闭DMA_ht中断
+
+
+usartinstance*usartregister(usart_init_configs*initconfig) 注册实例设备
+S1：检查注册设备数，发生错误时打印log
+S2：遍历检查是否注册过
+S3：开辟usartinstance大小的内存空间,并对instance赋值
+S4：实例数组元素赋值并增加实数注册数
+S5：返回指针
+
+usart_send(usartinstance*instance,uint8*send_buf,unint16_t send_size,usart_transfer_mode mode)实例的发送函数
+S1：检查模式并使用对应TX函数
+uint8 usartisready(Usartinstance*instance )检测串口是否空闲
+S1:检查串口TX忙碌状态标识位
+
+void usart rxeventcallback(usarthandletypdef*huart,uint16_t size)接收回调函数
+S1:遍历中断源
+S2:调取模块回调函数
+S3：清空buffer
+S4：重启dma，并关闭DMA的半传输中断
+
+void usart errorcallback(usarthandletypdef*huart)
+S1:遍历中断源
+S2：重启dma，并关闭DMA的半传输中断
+S3：打印日志
+

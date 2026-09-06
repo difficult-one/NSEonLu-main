@@ -1,0 +1,71 @@
+.h
+
+宏
+can_mx_register_cnt
+mx_can_filter_cnt
+device_can_cnt
+字节对齐
+caninstance
+	{
+     can_handletydef*can_handle
+	can_txheadertydef txconf
+	uint32_t tx id
+	uint32_t tx mailbox
+	uint8_t tx_buff[8];
+	uint8_t rx_buff[8];
+	uint32_t rx_id
+	uint_t8 rx_len;
+	void(*can_moudle_callback) (struck_*);
+	void *id
+	}
+
+can_init_config_s
+	{
+	can_handletydef*can_handle
+	uint32_t tx_id;
+	uint32_t rx_id;
+	void(*can_moudle_callback)(caninstance*);
+	void *id;
+	}
+
+函数
+
+caninstance *canregister(can_init_config_s*config);
+
+void cansetdlc(caninstance*_instance,uint8_t length);
+
+uint8_t cantransmit(caninstance* _instance,floattimeout);
+
+.c
+全局变量
+添加can_instance实例数组
+idx，全局实例素组索引，添加设备时自增
+
+函数定义
+
+void canaddfilter(caninstance*_instance)
+（普通的过滤器初始化流程）
+void canserviceinit()
+s1:激活can1，can2控制器
+s2：使能FIFO12的中断
+
+caninstance*canregister(can_initcfg_s*config)
+s1:判断实例数状态
+	1.第一次注册 
+	2.超出实例最大数
+	3.重复注册且id重复
+s2.
+	情况1：硬件初始化并给出log
+	情况2：打印错误log
+	情况3：打印错误信息
+
+uint8_t can_transmit(caninstance*_instance,float timeout)
+该函数较为复杂，首先等待can发送邮箱空闲
+	实现方法：
+
+
+
+
+
+
+

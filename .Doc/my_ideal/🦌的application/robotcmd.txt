@@ -1,0 +1,60 @@
+.h
+ void RobotCMDInit();
+ void RobotCMDTask();
+
+.c
+私有变量：
+宏定义：
+YAW_ALIGN_ANGLE (YAW_CHASSIS_ALIGN_ECD * ECD_ANGLE_COEF_DJI)    // 对齐时的角度 0-360
+PITCH_HORIZON_ANGLE (PITCH_HORIZON_ECD * ECD_ANGLE_COEF_DJI)    // pitch水平时电机的角度 0-360
+
+消息发布订阅相关变量：
+publisher_t *chassis_cmd_pub;            // 底盘控制消息发布者
+subscriber_t *chassis_feed_sub;          // 底盘反馈信息订阅者
+chassis_ctrl_cmd_s chassis_cmd_send;     // 发送给底盘的控制信息（含UI）
+chassis_upload_data_s chassis_fetch_data; // 从底盘接收的反馈信息
+
+publisher_t *gimbal_cmd_pub;             // 云台控制消息发布者
+subscriber_t *gimbal_feed_sub;           // 云台反馈信息订阅者
+gimbal_ctrl_cmd_s gimbal_cmd_send;       // 传递给云台的控制信息
+gimbal_upload_data_s gimbal_fetch_data;  // 从云台获取的反馈信息
+
+publisher_t *shoot_cmd_pub;              // 发射控制消息发布者
+subscriber_t *shoot_feed_sub;            // 发射反馈信息订阅者
+shoot_ctrl_cmd_s shoot_cmd_send;         // 传递给发射的控制信息
+shoot_upload_data_s shoot_fetch_data;    // 从发射获取的反馈信息
+
+rc_ctrl_t *rc_data;                      // 遥控器数据指针（初始化时返回）
+vision_recv_s *vision_recv_data;         // 视觉接收数据指针（初始化时返回）
+
+robot_status_e robot_state;              // 机器人整体工作状态
+
+BMI088Instance *bmi088_test;             // 云台IMU实例
+BMI088_Data_t bmi088_data;
+
+函数声明：
+void CalcOffsetAngle();                  // 计算偏移角度
+                                          // 根据gimbal传回的当前电机角度计算和零位的误差
+                                          // 分为三种情况讨论（大于/小于/跨360度）
+                                          // 将计算结果存入chassis_cmd_send.offset_angle
+
+void RemoteControlSet();                 // 遥控器控制模式
+                                          // 设置控制模式和控制量，来自robot_cmd.h中定义的模式
+void MouseKeySet();                      // 键鼠控制模式
+                                          // 键盘控制底盘速度、鼠标控制云台角度
+void EmergencyHandler();                 // 紧急处理
+                                          // 遥控器拨轮到底 → 所有模块进入stop状态
+
+函数实现：
+void RobotCMDInit()
+S1: 调用RemoteControlInit()初始化遥控器，注意选用添加了反相器的串口
+S2: 调用VisionInit()初始化视觉通信，注意选用正确的串口号
+S3: CHASSIS, SHOOT, GIMBAL 各自注册发布者和订阅者（通过message_center）
+    如果是双板通信(QIMBAL_BOARD)，还需要初始化CANComm进行跨板通信
+
+void RobotCMDTask()                      // 主任务函数，200Hz运行
+S1: 通过SubGetMessage获取所有模块的反馈数据（chassis/gimbal/shoot）
+S2: 调用CalcOffsetAngle计算云台和底盘正方向的夹角
+S3: 根据遥控器开关位置判断控制模式（遥控器/键鼠）
+S4: 调用EmergencyHandler处理急停
+S5: 通过PubPushMessage向各模块发布控制指令

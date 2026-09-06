@@ -1,0 +1,62 @@
+.c
+宏
+轴距，轮距，轮周长
+条件编译
+全局变量
+publisher_t*chassis_pub
+subscriber_t chassis_sub								
+chassis_ctrl_cmd_s chassis_recv							//接受的底盘控制指令
+chassis_upload_data_s chassis_feedback_data				//底盘反馈数据
+pidinstance buffer_pid;							        //底盘缓冲能量PID
+refereee_info_t *refree_data;							//裁判系统数据
+referee_interactive_info_t ui_data;						//裁判系统UI，接收底盘数据并显示
+supercapinstance_*cap								//超电实例
+DJIMotorInstance_*motor_lf*motor_rf*motor_lb*motor_rb        //电机实例
+float chassis_vx,chassis_vy;								//云台系到底盘
+float vt_lf,vt_rf,_vt_lb,vt_rb;								//解算速度输出
+
+私有函数
+void mecanumcaculate（）
+正运动学解算
+解算方法：
+
+
+void limitchassisoutput（）
+设置ref
+
+void estimate（）
+判断打滑，未定义
+
+公共函数
+void chassis init（）
+电机初始化配置：
+	电机实例创建
+	控制器参数设定
+	控制器设置配置
+
+裁判系统实例创建初始化并初始化UI
+
+buffer初始化
+超电初始化
+
+
+void chassis task（）
+S1:模式判断：
+	急停模式
+	正常工作模式
+
+S2:根据工作模式设定旋转速度
+	非跟随：w=0
+		跟随模式：以误差平方×系数作为输出
+	自旋并保持全向机动：w=4000
+S3：根据云台与底盘offset映射到底盘系
+
+s4：正运动学结算
+
+s5:输出限幅
+
+s6:计算真实速度
+
+s7:发送反馈消息
+
+

@@ -42,7 +42,7 @@ Cortex-Debug 使用 SEGGER 原生 J-Link GDB Server，配置如下：
 - 启动调试前自动执行默认构建任务。
 - launch 模式下载程序并运行到 `main`。
 - attach 模式连接现有程序，不重新下载。
-- 加载项目自带的 `STM32F407.svd`，启用 FreeRTOS 感知与 Live Watch。
+- 加载项目自带的 `STM32F407.svd` 并启用 FreeRTOS 感知。Cortex-Debug 1.12.1 的 Live Watch 仅适用于 OpenOCD，因此 J-Link 的实时变量观察统一交给 Ozone，避免保留无效配置。
 
 现有 STM32Cube、ST-Link、CMSIS-DAP 调试项不属于选定工作流，将从工作区调试列表中移除，避免误选；已安装的扩展和系统软件不卸载。
 

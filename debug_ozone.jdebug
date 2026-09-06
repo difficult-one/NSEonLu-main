@@ -1,0 +1,8 @@
+void OnProjectLoad(void) {
+  Project.SetDevice("STM32F407IG");
+  Project.SetHostIF("USB", "");
+  Project.SetTargetIF("SWD");
+  Project.SetTIFSpeed("4 MHz");
+  Project.SetOSPlugin("FreeRTOSPlugin_CM4");
+  File.Open("$(ProjectDir)/build/basic_framework.elf");
+}

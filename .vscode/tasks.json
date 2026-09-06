@@ -50,6 +50,18 @@
             "dependsOn": "Build: firmware",
             "dependsOrder": "sequence",
             "problemMatcher": []
+        },
+        {
+            "label": "Debug: Ozone",
+            "type": "process",
+            "command": "C:\\Program Files\\SEGGER\\Ozone\\Ozone.exe",
+            "args": ["${workspaceFolder}\\debug_ozone.jdebug"],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Build: firmware",
+            "dependsOrder": "sequence",
+            "problemMatcher": []
         }
     ]
 }

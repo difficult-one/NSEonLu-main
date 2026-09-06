@@ -147,9 +147,9 @@ void DJIMotorOuterLoop(DJIMotorInstance *motor, Closeloop_Type_e outer_loop);
 bool DJIChassisPowerRegister(const DJIChassisPowerConfig_s *config);
 
 /**
- * @brief 更新裁判系统给出的底盘功率上限，单位 W
+ * @brief 更新底盘当前可用的总功率预算，单位 W
  */
-void DJIChassisPowerSetLimit(float referee_power_limit_w);
+void DJIChassisPowerSetBudget(float total_budget_w);
 
 /**
  * @brief 更新超级电容衰减系数，算法内部限制到 [0, 1]

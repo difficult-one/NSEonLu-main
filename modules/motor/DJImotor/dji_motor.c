@@ -300,9 +300,9 @@ bool DJIChassisPowerRegister(const DJIChassisPowerConfig_s *config)
     return true;
 }
 
-void DJIChassisPowerSetLimit(float referee_power_limit_w)
+void DJIChassisPowerSetBudget(float total_budget_w)
 {
-    chassis_power_group.input.referee_power_limit_w = referee_power_limit_w;
+    chassis_power_group.input.referee_power_limit_w = total_budget_w;
 }
 
 void DJIChassisPowerSetAttenuation(float attenuation)

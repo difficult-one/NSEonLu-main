@@ -76,7 +76,7 @@ F407 super_cap 协议驱动 ── 0x061 ──► F334 电容板
 
 三个层次的职责边界：
 
-- `super_cap`：只负责 CAN 编解码、最新状态快照和在线监测；
+- `super_cap`：只负责 CAN 编解码、最新状态快照和在线监测；其中纯字节编解码拆为同目录的无硬件依赖文件，便于主机测试；
 - `chassis_power_budget`：只根据裁判限制、电容状态和能量计算底盘预算；
 - `dji_motor + power_model`：只根据总预算分配四轮功率并限制目标电流。
 
@@ -277,7 +277,7 @@ target_budget
   - 删除旧的电压/电流/功率报文结构；
   - 增加命令、状态、错误位和类型化接口。
 - `modules/super_cap/super_cap.c`
-  - 实现新协议编解码、DLC/数值校验、状态快照和在线守护。
+  - 实现 CAN 生命周期、状态快照和在线守护。
 - `application/chassis/chassis.c`
   - 使用 `0x061/0x051`；
   - 周期发送裁判数据；
@@ -290,6 +290,8 @@ target_budget
 
 新增：
 
+- `modules/super_cap/super_cap_protocol.h`
+- `modules/super_cap/super_cap_protocol.c`
 - `modules/algorithm/chassis_power_budget.h`
 - `modules/algorithm/chassis_power_budget.c`
 - `tests/super_cap_protocol/test_super_cap_protocol.c`
@@ -379,4 +381,3 @@ target_budget
 - 不新增第二套底盘电机发送路径；
 - 不把电容实际功率接成 F407 上的第二个闭环；
 - 不在首次接入时设计多帧版本化协议。
-

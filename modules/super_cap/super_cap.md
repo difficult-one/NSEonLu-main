@@ -1,54 +1,52 @@
-<!--
- * @Descripttion: 
- * @version: 
- * @Author: Chenfu
- * @Date: 2022-12-02 21:32:47
- * @LastEditTime: 2022-12-05 15:27:57
--->
-# super_can
+# F334 super capacitor driver
 
-## 代码结构
+This module connects the F407 chassis application to the F334 super capacitor
+controller over classic CAN.
 
-.h中放置的是数据定义和外部接口，以及协议的定义和宏，.c中包含一些私有函数。
-
-## 外部接口
+## Interface
 
 ```c
-SuperCapInstance *SuperCapInit(SuperCap_Init_Config_s* supercap_config);
-void SuperCapSend(SuperCapInstance *instance, uint8_t *data);
+SuperCapInstance *SuperCapInit(const SuperCap_Init_Config_s *config);
+bool SuperCapSendCommand(SuperCapInstance *instance,
+                         const SuperCapCommand_s *command);
+bool SuperCapGetStatus(SuperCapInstance *instance,
+                       SuperCapStatus_s *status);
 ```
-## 私有函数和变量
+
+`SuperCapSendCommand()` transmits an 8-byte command frame on standard ID
+`0x061`. `SuperCapGetStatus()` returns the most recently decoded 8-byte status
+frame received on standard ID `0x051`, together with the daemon-derived online
+state. The controller is considered offline when no valid status frame has been
+received for 200 ms.
+
+## Initialization example
 
 ```c
-static SuperCapInstance *super_cap_instance = NULL;
-static uint8_t *rxbuff;
-static void SuperCapRxCallback(can_instance *_instance)
+SuperCap_Init_Config_s config = {
+    .can_config = {
+        .can_handle = &hcan1,
+        .tx_id = SUPERCAP_COMMAND_CAN_ID,
+        .rx_id = SUPERCAP_STATUS_CAN_ID,
+    },
+    .offline_reload_count = 20U,
+};
+
+SuperCapInstance *supercap = SuperCapInit(&config);
 ```
 
-`SuperCapRxCallback()`是super cap初始化can实例时的回调函数，用于can接收中断，进行协议解析。
-
-## 使用范例
-
-初始化时设置如下：
+## Sending a command
 
 ```c
-SuperCap_Init_Config_s capconfig = {
-		.can_config = {
-			.can_handle = &hcan1,
-			.rx_id = 0x301,
-			.tx_id = 0x302
-		},
-		.recv_data_len = 4*sizeof(uint16_t),
-		.send_data_len = sizeof(uint8_t)
-	};
-SuperCapInstance *ins =SuperCapInit(&capconfig);
+SuperCapCommand_s command = {
+    .enable_dcdc = true,
+    .referee_power_limit_w = 100U,
+    .referee_buffer_energy_j = 50U,
+};
+
+SuperCapSendCommand(supercap, &command);
 ```
 
-
-发送通过`SuperCapSend()`，建议使用强制类型转换：
-
-```c
-uint16_t tx = 0x321;
-SuperCapSend(ins, (uint8_t*)&tx);
-```
-
+The byte-level protocol and power-budget behavior are documented in
+`docs/supercap-can-protocol.md`. The codec implementation in
+`super_cap_protocol.c` is the single source of truth for packing and unpacking
+frames.

@@ -1,70 +1,70 @@
-# F334 Supercapacitor CAN Protocol
+# F334 超级电容 CAN 通信协议
 
-This document describes the wire contract between the NSEonLu F407 chassis controller and the independent F334 supercapacitor controller.
+本文档描述了 NSEonLu F407 底盘控制器与独立的 F334 超级电容控制器之间的通信约定。
 
-## Bus configuration
+## 总线配置
 
-- Classic CAN, standard 11-bit identifiers.
-- F407 command ID: `0x061`.
-- F334 status ID: `0x051`.
-- Both frames use DLC 8.
-- Multi-byte values use little-endian byte order.
-- F407 sends commands from `ChassisTask()` every 5 ms (200 Hz).
-- F334 initially sends status every 1 ms (1 kHz); after bus validation it sends every 5 ms (200 Hz).
-- F407 declares the F334 status offline after 200 ms without a valid frame.
+- 经典 CAN，使用标准 11 位标识符。
+- F407 指令帧 ID：`0x061`。
+- F334 状态帧 ID：`0x051`。
+- 两帧 DLC 均为 8。
+- 多字节数值使用小端字节序。
+- F407 在 `ChassisTask()` 中每 5 ms（200 Hz）发送一次指令。
+- F334 初始每 1 ms（1 kHz）发送一次状态帧；总线校验通过后改为每 5 ms（200 Hz）发送。
+- F407 在 200 ms 内未收到有效状态帧时，判定 F334 离线。
 
-## Command frame: F407 to F334, ID 0x061
+## 指令帧：F407 → F334，ID 0x061
 
-| Byte | Format | Meaning |
+| 字节 | 格式 | 含义 |
 |---:|---|---|
-| 0 | bit field | bit0: enable DCDC; bit1: restart request; bit2-7: zero |
-| 1-2 | `uint16_t`, little-endian | original referee chassis power limit in W |
-| 3-4 | `uint16_t`, little-endian | original referee buffer energy in J |
-| 5-7 | reserved | zero |
+| 0 | 位域 | bit0：使能 DCDC；bit1：重启请求；bit2-7：置零 |
+| 1-2 | `uint16_t`，小端 | 裁判系统底盘原始功率上限（W） |
+| 3-4 | `uint16_t`，小端 | 裁判系统原始缓冲能量（J） |
+| 5-7 | 保留 | 置零 |
 
-The normal runtime encoder always leaves the restart-request bit clear. Restart is not part of periodic chassis control.
+正常运行时的编码始终将重启请求位置零。重启不属于周期性的底盘控制内容。
 
-Example: enable DCDC, `100 W` power limit, `50 J` buffer energy:
+示例：使能 DCDC，功率上限 `100 W`，缓冲能量 `50 J`：
 
 ```text
 01 64 00 32 00 00 00 00
 ```
 
-The command must contain the original referee limit, or the explicit 40 W bench fallback when bench mode is enabled and referee data is absent. It must never contain the supercapacitor-boosted motor budget.
+指令必须携带裁判系统原始功率上限；在台架模式开启且无裁判系统数据时，使用明确的 40 W 台架回退值。指令中绝不能携带超级电容增补后的电机功率预算。
 
-## Status frame: F334 to F407, ID 0x051
+## 状态帧：F334 → F407，ID 0x051
 
-| Byte | Format | Meaning |
+| 字节 | 格式 | 含义 |
 |---:|---|---|
-| 0 | bit field | bit7: DCDC output disabled; bit0-6: error code |
-| 1-4 | IEEE-754 `float`, little-endian | measured chassis power in W |
-| 5-6 | `uint16_t`, little-endian | F334-reported available chassis power in W |
-| 7 | `uint8_t` | capacitor energy, `0-255` maps to `0-100%` |
+| 0 | 位域 | bit7：DCDC 输出禁用；bit0-6：错误码 |
+| 1-4 | IEEE-754 `float`，小端 | 实测底盘功率（W） |
+| 5-6 | `uint16_t`，小端 | F334 上报的可提供给底盘的功率（W） |
+| 7 | `uint8_t` | 电容能量，`0-255` 线性映射到 `0-100%` |
 
-Status error bits:
+状态错误码位：
 
-| Bit | Mask | Meaning |
+| 位 | 掩码 | 含义 |
 |---:|---:|---|
-| 0 | `0x01` | under-voltage |
-| 1 | `0x02` | over-voltage |
-| 2 | `0x04` | buck-boost fault |
-| 3 | `0x08` | short circuit |
-| 4 | `0x10` | high temperature |
-| 5 | `0x20` | no power input |
-| 6 | `0x40` | capacitor fault |
-| 7 | `0x80` | DCDC output disabled |
+| 0 | `0x01` | 欠压 |
+| 1 | `0x02` | 过压 |
+| 2 | `0x04` | 升降压故障 |
+| 3 | `0x08` | 短路 |
+| 4 | `0x10` | 高温 |
+| 5 | `0x20` | 无功率输入 |
+| 6 | `0x40` | 电容故障 |
+| 7 | `0x80` | DCDC 输出禁用 |
 
-The receiver reconstructs the float through an aligned `uint32_t` plus `memcpy`; it does not cast the CAN buffer to a packed structure. Frames with DLC other than 8 or a non-finite chassis-power float are rejected and do not refresh the online watchdog.
+接收端通过按对齐要求放置的 `uint32_t` 加 `memcpy` 重组浮点数，不会把 CAN 缓冲直接强转为紧凑结构体。DLC 不为 8、或底盘功率浮点数为非有限值的帧会被拒绝，且不会刷新在线看门狗。
 
-## Power-budget behavior
+## 功率预算行为
 
-- Energy at or below 10%: no boost.
-- Energy from 10% to 30%: boost scales linearly from 0% to 100%.
-- Energy at or above 30%: full permitted boost.
-- F334-reported boost above the referee limit is capped at 100 W.
-- Budget decreases apply immediately; increases are limited to 200 W/s.
-- The existing motor-model safety factor remains 0.95.
+- 能量 ≤ 10%：不提供增补。
+- 能量 10% 至 30%：增补按 0% 至 100% 线性提升。
+- 能量 ≥ 30%：提供允许范围内的全部增补。
+- F334 上报的增补超过裁判系统上限时，封顶为 100 W。
+- 预算降低立即生效；升高限制为 200 W/s。
+- 现有电机功率模型安全系数保持 0.95。
 
-F334 offline, disabled, low-energy, or faulted: remove supercapacitor boost immediately and retain only the valid referee/bench base budget.
+F334 离线、禁用、能量过低或故障时：立即移除超级电容增补，仅保留有效的裁判系统/台架基础预算。
 
-The capacitor state does not call `DJIMotorStop()` directly. Chassis stop behavior remains owned by robot emergency-stop, referee output permission, and motor-offline logic.
+电容状态不会直接调用 `DJIMotorStop()`。底盘停机行为仍由机器人急停、裁判系统发射/输出权限以及电机离线逻辑负责。

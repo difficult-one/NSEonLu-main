@@ -16,6 +16,10 @@
             "serverArgs": ["-speed", "4000"],
             "svdFile": "${workspaceFolder}\\STM32F407.svd",
             "rtos": "FreeRTOS",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 4
+            },
             "runToEntryPoint": "main",
             "preLaunchTask": "Build: firmware",
             "showDevDebugOutput": "none"
@@ -35,6 +39,10 @@
             "serverArgs": ["-speed", "4000"],
             "svdFile": "${workspaceFolder}\\STM32F407.svd",
             "rtos": "FreeRTOS",
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 4
+            },
             "showDevDebugOutput": "none"
         }
     ]

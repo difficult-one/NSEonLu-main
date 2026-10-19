@@ -631,7 +631,7 @@ Use:
 ```c
 SuperCap_Init_Config_s cap_conf = {
     .can_config = {
-        .can_handle = &hcan2,
+        .can_handle = &hcan1,
         .tx_id = SUPERCAP_COMMAND_CAN_ID,
         .rx_id = SUPERCAP_STATUS_CAN_ID,
     },

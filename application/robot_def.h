@@ -14,6 +14,7 @@
 
 #include "ins_task.h"
 #include "master_process.h"
+#include "power_model.h"
 #include "stdint.h"
 
 /* 开发板类型定义,烧录时注意不要弄错对应功能;修改定义后需要重新编译,只能存在一个定义! */
@@ -26,22 +27,55 @@
 
 /*
  * 底盘台架功率回退。正式固件必须保持为 0；仅在车轮架空调试且没有裁判系统时设为 1。
- * 启用后，只有裁判系统未给出有效正功率上限时才使用 CHASSIS_POWER_BENCH_LIMIT_W。
+ * 启用后，只有裁判功率快照无效时才使用 CHASSIS_POWER_BENCH_LIMIT_W。
  */
 #ifndef CHASSIS_POWER_BENCH_TEST
 #define CHASSIS_POWER_BENCH_TEST 1
 #endif
 #ifndef CHASSIS_POWER_BENCH_LIMIT_W
-#define CHASSIS_POWER_BENCH_LIMIT_W 40.0f
+#define CHASSIS_POWER_BENCH_LIMIT_W 50.0f // 底盘功率回退限制，单位 W
 #endif
 
 #if CHASSIS_POWER_BENCH_TEST != 0 && CHASSIS_POWER_BENCH_TEST != 1
 #error CHASSIS_POWER_BENCH_TEST must be 0 or 1.
 #endif
 
+/* 功率计 CAN1 状态接收；设为 0 时不创建实例或注册 CAN 过滤器。 */
+#ifndef POWER_METER_ENABLE
+#define POWER_METER_ENABLE 1
+#endif
+
+#include "chassis_power_config.h"
+
+#define POWER_METER_ENABLE_IS_VALID_0 1// 0 表示不启用功率计
+#define POWER_METER_ENABLE_IS_VALID_1 1// 1 表示启用功率计
+#define POWER_METER_ENABLE_IS_VALID_IMPL(value) POWER_METER_ENABLE_IS_VALID_##value
+#define POWER_METER_ENABLE_IS_VALID(value) POWER_METER_ENABLE_IS_VALID_IMPL(value)
+
+#if !POWER_METER_ENABLE_IS_VALID(POWER_METER_ENABLE)
+#error POWER_METER_ENABLE must be 0 or 1.
+#endif
+
+#undef POWER_METER_ENABLE_IS_VALID
+#undef POWER_METER_ENABLE_IS_VALID_IMPL
+#undef POWER_METER_ENABLE_IS_VALID_1
+#undef POWER_METER_ENABLE_IS_VALID_0
+
 /* 机器人重要参数定义,注意根据不同机器人进行修改,浮点数需要以.0或f结尾,无符号以u结尾 */
+// 底盘类型：默认保持现有麦克纳姆轮，改为 CHASSIS_DRIVE_OMNI_X 可启用四轮 X 型全向轮
+#define CHASSIS_DRIVE_MECANUM 0
+#define CHASSIS_DRIVE_OMNI_X 1
+#ifndef CHASSIS_DRIVE_TYPE
+#define CHASSIS_DRIVE_TYPE CHASSIS_DRIVE_MECANUM
+#endif
+
+#if CHASSIS_DRIVE_TYPE != CHASSIS_DRIVE_MECANUM && \
+    CHASSIS_DRIVE_TYPE != CHASSIS_DRIVE_OMNI_X
+#error CHASSIS_DRIVE_TYPE must be CHASSIS_DRIVE_MECANUM or CHASSIS_DRIVE_OMNI_X.
+#endif
+
 // 云台参数
-#define YAW_CHASSIS_ALIGN_ECD 2711  // 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
+#define YAW_CHASSIS_ALIGN_ECD 3734// 云台和底盘对齐指向相同方向时的电机编码器值,若对云台有机械改动需要修改
 #define YAW_ECD_GREATER_THAN_4096 0 // ALIGN_ECD值是否大于4096,是为1,否为0;用于计算云台偏转角度
 #define PITCH_HORIZON_ECD 3412      // 云台处于水平位置时编码器值,若对云台有机械改动需要修改
 #define PITCH_MAX_ANGLE 0           // 云台竖直方向最大角度 (注意反馈如果是陀螺仪，则填写陀螺仪的角度)
@@ -57,6 +91,20 @@
 #define CENTER_GIMBAL_OFFSET_Y 0    // 云台旋转中心距底盘几何中心的距离,左右方向,云台位于正中心时默认设为0
 #define RADIUS_WHEEL 60             // 轮子半径
 #define REDUCTION_RATIO_WHEEL 19.0f // 电机减速比,因为编码器量测的是转子的速度而不是输出轴的速度故需进行转换
+
+// X 型全向轮方向校正：架空测试时若某一轮方向相反，只将对应值改为 -1.0f
+#ifndef OMNI_X_LF_DIRECTION
+#define OMNI_X_LF_DIRECTION 1.0f
+#endif
+#ifndef OMNI_X_RF_DIRECTION
+#define OMNI_X_RF_DIRECTION 1.0f
+#endif
+#ifndef OMNI_X_LB_DIRECTION
+#define OMNI_X_LB_DIRECTION 1.0f
+#endif
+#ifndef OMNI_X_RB_DIRECTION
+#define OMNI_X_RB_DIRECTION 1.0f
+#endif
 
 #define GYRO2GIMBAL_DIR_YAW 1   // 陀螺仪数据相较于云台的yaw的方向,1为相同,-1为相反
 #define GYRO2GIMBAL_DIR_PITCH 1 // 陀螺仪数据相较于云台的pitch的方向,1为相同,-1为相反
@@ -194,6 +242,7 @@ typedef struct
 
 typedef struct
 {
+    Chassis_Power_Control_Data_s power_control;
 #if defined(CHASSIS_BOARD) || defined(GIMBAL_BOARD) // 非单板的时候底盘还将imu数据回传(若有必要)
     // attitude_t chassis_imu_data;
 #endif

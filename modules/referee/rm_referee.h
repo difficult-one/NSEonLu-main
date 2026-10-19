@@ -6,6 +6,8 @@
 #include "robot_def.h"
 #include "bsp_usart.h"
 #include "FreeRTOS.h"
+#include "referee_power.h"
+#include "referee_stream_parser.h"
 
 extern uint8_t UI_Seq;
 
@@ -80,6 +82,14 @@ typedef struct
 
 #pragma pack()
 
+typedef struct
+{
+	/* valid_frame_count counts transport frames that passed both CRC checks. */
+	RefereeStreamParserStats_s transport;
+	/* CRC-valid supported commands rejected for a non-exact payload length. */
+	uint32_t payload_length_error_count;
+} RefereeLinkDiagnostics_s;
+
 /**
  * @brief 裁判系统通信初始化,该函数会初始化裁判系统串口,开启中断
  *
@@ -87,6 +97,16 @@ typedef struct
  * @return referee_info_t* 返回裁判系统反馈的数据,包括热量/血量/状态等
  */
 referee_info_t *RefereeInit(UART_HandleTypeDef *referee_usart_handle);
+
+/**
+ * @brief 原子复制裁判功率状态并在同一临界区内采样当前时间
+ */
+bool RefereeGetPowerSnapshot(RefereePowerSnapshot_s *snapshot);
+
+/**
+ * @brief 获取裁判链路诊断；transport.valid_frame_count仅表示CRC通过，不代表业务载荷长度有效
+ */
+bool RefereeGetLinkDiagnostics(RefereeLinkDiagnostics_s *diagnostics);
 
 /**
  * @brief UI绘制和交互数的发送接口,由UI绘制任务和多机通信函数调用

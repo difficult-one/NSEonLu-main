@@ -31,7 +31,7 @@
 #define BMI088_GYRO_250_SEN 0.00013315805450396191230191732547673f
 #define BMI088_GYRO_125_SEN 0.000066579027251980956150958662738366f
 
-// ���ֶ��޸�
+// 閿熸枻鎷烽敓琛楄鎷烽敓鐫潻鎷�
 #if INFANTRY_ID == 0
 #define GxOFFSET 0.00247530174f
 #define GyOFFSET 0.000393082853f
@@ -59,7 +59,7 @@
 #define gNORM 9.876785f
 #endif
 
-/* IMU数据结构体 */
+/* IMU閺佺増宓佺紒鎾寸€担锟� */
 typedef struct
 {
     float Accel[3];
@@ -75,7 +75,7 @@ typedef struct
     float gNorm;
 } IMU_Data_t;
 
-/* BMI088错误码枚举 */
+/* BMI088闁挎瑨顕ら惍浣圭亣娑擄拷 */
 enum
 {
     BMI088_NO_ERROR = 0x00,
@@ -101,32 +101,32 @@ enum
 extern IMU_Data_t BMI088;
 
 /**
- * @brief 初始化BMI088,传入连接的SPI总线handle,以及是否进行在线标定
+ * @brief 閸掓繂顫愰崠鏈哅I088,娴肩姴鍙嗘潻鐐村复閻ㄥ嚪PI閹崵鍤巋andle,娴犮儱寮烽弰顖氭儊鏉╂稖顢戦崷銊у殠閺嶅洤鐣�
  * 
  * @param bmi088_SPI handle
- * @param calibrate  1为进行在线标定,0使用离线数据
- * @return uint8_t   成功则返回BMI088_NO_ERROR
+ * @param calibrate  1娑撻缚绻樼悰灞芥躬缁炬寧鐖ｇ€癸拷,0娴ｈ法鏁ょ粋鑽ゅ殠閺佺増宓�
+ * @return uint8_t   閹存劕濮涢崚娆掔箲閸ユ卡MI088_NO_ERROR
  */
 extern uint8_t BMI088Init(SPI_HandleTypeDef *bmi088_SPI, uint8_t calibrate);
 
 /**
- * @brief 加速计初始化
+ * @brief 閸旂娀鈧喕顓搁崚婵嗩潗閸栵拷
  * 
  * @return uint8_t 
  */
 extern uint8_t bmi088_accel_init(void);
 
 /**
- * @brief 陀螺仪初始化
+ * @brief 闂勨偓閾昏桨鍗庨崚婵嗩潗閸栵拷
  * 
  * @return uint8_t 
  */
 extern uint8_t bmi088_gyro_init(void);
 
 /**
- * @brief 读取一次BMI088的数据,包括gyro和accel
+ * @brief 鐠囪褰囨稉鈧▎顡圡I088閻ㄥ嫭鏆熼幑锟�,閸栧懏瀚璯yro閸滃畮ccel
  * 
- * @param bmi088 传入BMI088实例(结构体)
+ * @param bmi088 娴肩姴鍙咮MI088鐎圭偘绶�(缂佹挻鐎担锟�)
  */
 extern void BMI088_Read(IMU_Data_t *bmi088);
 

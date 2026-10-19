@@ -109,6 +109,9 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len);
 
 /* USER CODE BEGIN EXPORTED_FUNCTIONS */
 uint8_t* CDCInitRxbufferNcallback(USBCallback transmit_cbk,USBCallback recv_cbk);
+uint8_t CDC_IsPortOpen_FS(void);
+uint8_t CDC_IsTransmitIdle_FS(void);
+uint32_t CDC_GetSession_FS(void);
 /* USER CODE END EXPORTED_FUNCTIONS */
 
 /**

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>C 板遥测 · USB 实时仪表盘</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233478f6'/%3E%3Cpath d='M3 17h5l4-10 6 18 4-12 3 4h4' fill='none' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tuning.css">
+  <link rel="stylesheet" href="autotune.css">
+  <script src="protocol.js" defer></script>
+  <script src="serial.js" defer></script>
+  <script src="charts.js" defer></script>
+  <script src="tuning.js" defer></script>
+  <script src="tuning-ui.js" defer></script>
+  <script src="autotune.js" defer></script>
+  <script src="autotune-ui.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="C 板遥测主页"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h5l4-10 6 18 4-12 3 4h4"/></svg></span><span><span class="brand-name">C 板遥测<span class="brand-tag">USB TELEMETRY</span></span><span class="brand-description">底盘、遥控器与能量，一眼掌握。</span></span></a>
+    <span class="local-badge"><i></i>本地运行 · 数据留在本机</span>
+  </header>
+  <main class="workspace">
+    <section class="connection-card card" aria-label="连接与采集">
+      <div class="connection-summary"><span id="connection-dot" class="connection-dot"></span><div><strong id="connection-status" role="status">尚未连接 C 板</strong><span id="connection-detail">USB CDC 虚拟串口 · 50 Hz 遥测</span></div></div>
+      <div class="toolbar-actions"><button type="button" class="primary-button" id="connect-button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v5m6-5v5M7 8h10v3a5 5 0 0 1-5 5v5m0-5a5 5 0 0 1-5-5V8"/></svg><span>连接 C 板</span></button><button type="button" class="secondary-button" id="demo-button">演示数据</button><span class="toolbar-divider"></span><button type="button" class="secondary-button" id="pause-button" disabled aria-pressed="false">暂停显示</button><button type="button" class="secondary-button" id="export-button" disabled>导出 CSV <span aria-hidden="true">↗</span></button></div>
+      <p id="message" class="connection-message" role="status">将 C 板连接至电脑，点击“连接 C 板”并选择对应串口。也可用演示数据预览。</p>
+    </section>
+    <div class="demo-notice" id="demo-notice" hidden><span><strong>演示模式</strong> 当前为模拟数据，与真实 C 板无关。连接串口将清空演示记录。</span><button type="button" id="stop-demo-button">结束演示</button></div>
+    <div class="stream-bar"><div class="stream-stats"><span>接收 <strong id="rx-rate">—</strong><small>Hz</small></span><span>样本年龄 <strong id="sample-age">—</strong><small>ms</small></span><span>历史 <strong id="sample-count">0</strong><small>/ 30000 · 10 分钟</small></span><span>缺行 <strong id="missing-count">0</strong></span><span>坏行 <strong id="bad-count">0</strong></span><span>板端丢弃 <strong id="tx-drop-count">—</strong></span></div><span id="display-status" class="display-status">等待数据</span></div>
+
+    <section class="metrics" aria-label="关键数据">
+      <article class="metric-card card"><div class="metric-label"><i class="color-dot blue"></i>实测底盘功率<span class="metric-tag">功率计</span></div><div class="metric-number"><strong id="metric-meter">—</strong><span>W</span></div><p id="metric-meter-detail">等待功率计数据</p><span class="metric-accent blue-accent"></span></article>
+      <article class="metric-card card"><div class="metric-label"><i class="color-dot purple"></i>模型功率限制<span class="metric-tag">最终</span></div><div class="metric-number"><strong id="metric-limit">—</strong><span>W</span></div><p id="metric-limit-detail">名义预算 — W</p><span class="metric-accent purple-accent"></span></article>
+      <article class="metric-card card"><div class="metric-label"><i class="color-dot teal"></i>裁判缓冲能量<span class="metric-tag">原始</span></div><div class="metric-number"><strong id="metric-buffer">—</strong><span>J</span></div><p id="metric-buffer-detail">等待裁判数据</p><span class="metric-accent teal-accent"></span></article>
+      <article class="metric-card card"><div class="metric-label"><i class="color-dot amber"></i>保守能量下限<span class="metric-tag">估算</span></div><div class="metric-number"><strong id="metric-estimate">—</strong><span>J</span></div><p id="metric-estimate-detail">预测能量 — J</p><span class="metric-accent amber-accent"></span></article>
+      <article class="metric-card card"><div class="metric-label"><i class="color-dot green"></i>超级电容能量<span class="metric-tag">比例</span></div><div class="metric-number"><strong id="metric-cap">—</strong><span>%</span></div><p id="metric-cap-detail">等待电容数据</p><div class="cap-progress"><span id="cap-progress-value"></span></div></article>
+    </section>
+
+    <nav class="workspace-tabs" aria-label="工作区" role="tablist">
+      <button type="button" id="monitor-tab" role="tab" aria-selected="true" aria-controls="monitor-panel">实时监测</button>
+      <button type="button" id="tuning-tab" role="tab" aria-selected="false" aria-controls="tuning-panel" tabindex="-1">在线调参 <span>PID · 功控 · 小陀螺</span></button>
+      <button type="button" id="autotune-tab" role="tab" aria-selected="false" aria-controls="autotune-panel" tabindex="-1">自动整定 <span>单轮 PID · 台架</span></button>
+    </nav>
+    <div id="monitor-panel" role="tabpanel" aria-labelledby="monitor-tab">
+    <div class="dashboard-grid">
+      <div class="chart-stack">
+        <section class="card chart-card"><div class="section-heading"><div><span class="eyebrow">POWER MONITOR</span><h2>功率观测 <span>W</span></h2></div><span class="window-label">最近 60 秒</span></div><div class="chart-legend"><span><i class="color-dot blue"></i>功率计实测</span><span><i class="color-dot teal"></i>模型限流后</span><span><i class="color-dot gray"></i>模型未限流</span><span><i class="line-dot purple"></i>最终限制</span><span><i class="line-dot amber"></i>目标功率</span></div><div class="chart-container"><canvas id="power-chart" role="img" aria-label="最近 60 秒功率趋势，单位瓦"></canvas><div class="chart-empty" data-empty-chart><span class="empty-wave">∿</span><strong>等待第一帧数据</strong><span>连接 C 板或启动演示，即可观察实时曲线</span></div></div><div class="chart-footer"><span>实测 · 模型预测 · 控制预算</span><span>无效来源与通信中断处留空</span></div></section>
+        <section class="card chart-card energy-card"><div class="section-heading"><div><span class="eyebrow">BUFFER ENERGY</span><h2>缓冲能量 <span>J</span></h2></div><span id="buffer-state" class="status-pill neutral">等待数据</span></div><div class="chart-legend"><span><i class="color-dot teal"></i>裁判原始值</span><span><i class="color-dot amber"></i>保守下限</span><span><i class="line-dot purple"></i>预测能量</span></div><div class="chart-container"><canvas id="energy-chart" role="img" aria-label="最近 60 秒缓冲能量趋势，单位焦耳"></canvas><div class="chart-empty" data-empty-chart><span class="empty-wave">∿</span><strong>能量变化将在这里呈现</strong><span>原始值与算法估算分别显示</span></div></div><div class="chart-footer"><span>能量估算不等同于传感器实测</span><span>采集 50 Hz · 显示最高 20 Hz</span></div></section>
+      </div>
+
+      <aside class="side-stack">
+        <section class="card remote-card" aria-label="遥控器状态"><div class="section-heading"><div><span class="eyebrow">REMOTE CONTROL</span><h2>遥控器</h2></div><span id="remote-status" class="status-pill neutral">等待数据</span></div><div class="joysticks"><div class="joystick"><div class="stick-heading"><strong>左摇杆</strong><span>CH 2 / 3</span></div><div class="stick-plane" id="left-stick" aria-label="左摇杆位置"><div class="stick-ring"></div><i class="stick-point" id="left-stick-point"></i><span class="axis-x">X</span><span class="axis-y">Y</span></div><div class="stick-values"><span>X <b id="rc-lx">—</b></span><span>Y <b id="rc-ly">—</b></span></div></div><div class="joystick"><div class="stick-heading"><strong>右摇杆</strong><span>CH 0 / 1</span></div><div class="stick-plane" id="right-stick" aria-label="右摇杆位置"><div class="stick-ring"></div><i class="stick-point" id="right-stick-point"></i><span class="axis-x">X</span><span class="axis-y">Y</span></div><div class="stick-values"><span>X <b id="rc-rx">—</b></span><span>Y <b id="rc-ry">—</b></span></div></div></div><div class="remote-controls"><div><span>左拨杆</span><strong id="rc-sw-left">—</strong></div><div><span>右拨杆</span><strong id="rc-sw-right">—</strong></div><div class="dial-control"><span>拨轮 <b id="rc-dial">—</b></span><div class="dial-track"><i></i><span id="dial-indicator"></span></div></div></div><div class="input-section"><span class="sub-label">键盘按键</span><div class="keyboard" id="keyboard" aria-label="遥控器键盘状态"></div></div><div class="mouse-row"><span class="sub-label">鼠标</span><span>X <strong id="mouse-x">—</strong></span><span>Y <strong id="mouse-y">—</strong></span><span class="mouse-key" id="mouse-left">左键</span><span class="mouse-key" id="mouse-right">右键</span></div><p class="source-age" id="rc-age">遥控器样本年龄 — ms</p></section>
+        <section class="card sources-card"><div class="section-heading"><div><span class="eyebrow">SOURCE HEALTH</span><h2>设备与数据源</h2></div><span class="tiny-label">状态 / 年龄</span></div><div id="source-list" class="source-list"></div><div class="cap-details"><span>电容输出 <strong id="cap-output">—</strong></span><span>故障码 <strong id="cap-error">—</strong></span><span>底盘功率 <strong id="cap-chassis">—</strong> W</span><span>可用上限 <strong id="cap-limit">—</strong> W</span><span>输入功率 <strong id="cap-input">—</strong> W</span><span>供电来源 <strong id="power-source">—</strong></span></div></section>
+      </aside>
+    </div>
+
+    <section class="card motors-card" aria-label="底盘与电机"><div class="section-heading"><div><span class="eyebrow">CHASSIS & MOTORS</span><h2>底盘与四轮电机</h2></div><span id="chassis-mode" class="status-pill neutral">等待底盘数据</span></div><div class="chassis-commands"><span>Vx 指令 <strong id="vx-command">—</strong></span><span>Vy 指令 <strong id="vy-command">—</strong></span><span>Wz 指令 <strong id="wz-command">—</strong></span><small>控制原始单位</small></div><div class="motor-layout"><div class="motor-plot"><div class="chart-legend"><span><i class="color-dot blue"></i>左前 LF</span><span><i class="color-dot teal"></i>右前 RF</span><span><i class="color-dot amber"></i>左后 LB</span><span><i class="color-dot purple"></i>右后 RB</span><span class="legend-note">实线：实际 · 虚线：目标</span></div><div class="chart-container"><canvas id="rpm-chart" role="img" aria-label="四轮目标与实际转速，单位 rpm"></canvas><div class="chart-empty" data-empty-chart><span class="empty-wave">∿</span><strong>四轮转速 · rpm</strong></div></div></div><div class="motor-table-wrap"><table class="motor-table"><caption>电机转速与电流</caption><thead><tr><th>电机 / 状态</th><th>目标<br><small>rpm</small></th><th>实际<br><small>rpm</small></th><th>命令<br><small>电流原值</small></th><th>反馈<br><small>电流原值</small></th></tr></thead><tbody id="motor-table-body"></tbody></table><p class="table-note">电流为 DJI 原始单位；未换算为安培。</p></div></div></section>
+    </div>
+    <section id="tuning-panel" role="tabpanel" aria-labelledby="tuning-tab" hidden>
+      <div class="tuning-intro"><div><span class="eyebrow">LIVE PARAMETERS</span><h2>在线调参</h2><p>参数实时生效、同步项目文件，停机后自动保存到板端。</p></div><span class="status-pill neutral">支持掉电保存</span></div>
+      <div class="tuning-layout">
+        <aside class="tuning-navigation card" role="tablist" aria-label="参数组">
+          <button type="button" data-tuning-group="pid" role="tab" aria-selected="true"><strong>01 <span>速度环 PID</span></strong><small>四轮独立增益与限幅</small></button>
+          <button type="button" data-tuning-group="power" role="tab" aria-selected="false"><strong>02 <span>功率控制</span></strong><small>功率外环与能量预算</small></button>
+          <button type="button" data-tuning-group="spin" role="tab" aria-selected="false"><strong>03 <span>小陀螺</span></strong><small>旋转目标与波形</small></button>
+          <p>应用后进入零力模式并保持电机停止，等待“已保存到板端”再断电。启动优先恢复有效的板端保存值。</p>
+        </aside>
+        <article class="tuning-editor card">
+          <div class="tuning-heading"><div><h2 id="tuning-title">四轮速度环 PID</h2><p id="tuning-description"></p></div><span id="tuning-mode" class="status-pill neutral"></span></div>
+          <div class="tuning-read-bar"><span id="tuning-revision">尚未读取</span><button type="button" id="tuning-read" class="secondary-button" disabled>重新读取板端</button></div>
+          <div id="tuning-fields"></div>
+          <div class="tuning-persistence"><p id="tuning-persistence-status" role="status" aria-live="polite">连接 C 板后确认掉电保存状态。</p><button type="button" id="tuning-save" class="secondary-button" hidden>保存到板端</button></div>
+          <div class="tuning-actions"><div id="tuning-status" role="status" aria-live="polite">连接 C 板后读取当前参数。</div><div><button type="button" id="tuning-sync" class="secondary-button" hidden>重试同步文件</button><button type="button" id="tuning-revert" class="secondary-button" disabled>撤销草稿</button><button type="button" id="tuning-apply" class="primary-button" disabled>应用并同步文件</button></div></div>
+        </article>
+      </div>
+    </section>
+    <section id="autotune-panel" role="tabpanel" aria-labelledby="autotune-tab" hidden>
+      <div class="auto-intro"><div><span class="eyebrow">PID AUTOTUNE</span><h2>让每次调参，都有依据。</h2><p>基线测试 → 有界搜索 → 独立复测 → 查看对比后采用</p></div><span id="auto-mode" class="status-pill neutral">尚未连接</span></div>
+      <div class="auto-grid">
+        <aside id="auto-settings" class="card auto-settings">
+          <h3>台架测试设置</h3>
+          <div class="auto-instructions">底盘架空固定、四轮离地。<br>遥控器左拨杆下、右拨杆中；摇杆和拨轮居中，无键鼠输入。<br>结束后拨轮向下超过一半进入零力，再重新准备或保存。</div>
+          <label>测试电机<select id="auto-wheel"><option value="0">左前 LF</option><option value="1">右前 RF</option><option value="2">左后 LB</option><option value="3">右后 RB</option><option value="all">依次测试全部四轮</option></select></label>
+          <label>目标转速 · 电机 rpm<input id="auto-rpm" type="number" min="100" max="1500" step="50" value="500"><small>100～1500 rpm；从较低转速开始。</small></label>
+          <label>保持时间 · ms<input id="auto-hold" type="number" min="500" max="2000" step="100" value="1000"><small>每次另有前后各 300 ms 归零阶段。</small></label>
+          <label>临时电流上限 · 原值<input id="auto-cap" type="number" min="500" max="5000" step="100" value="3000"><small>保留原限幅与功率保护；不换算为安培。</small></label>
+          <label class="auto-confirm"><input id="auto-confirm" type="checkbox"><span>已确认底盘架空固定、四轮离地，可以执行单轮转速测试。</span></label>
+          <div class="auto-buttons"><button id="auto-start" class="primary-button" type="button" disabled>开始自动整定</button><button id="auto-stop" class="secondary-button auto-stop" type="button" disabled>停止并恢复</button><button id="auto-demo" class="secondary-button" type="button">演示整定流程</button></div>
+        </aside>
+        <article class="card auto-workspace">
+          <div class="auto-stage"><div><span class="eyebrow">TRIAL PROGRESS</span><p id="auto-progress-text">等待首次试验</p></div><div><strong id="auto-latest">— rpm</strong><br><small>最近一轮 RMSE</small></div></div>
+          <progress id="auto-progress" max="15" value="0" aria-label="整定进度"></progress>
+          <p id="auto-status" class="auto-status" role="status" aria-live="polite">可先运行演示，或连接支持自动整定的 C 板固件。</p>
+          <div class="chart-legend"><span><i class="color-dot blue"></i>所选轮实际转速</span><span><i class="line-dot purple"></i>目标转速</span><span>最近 5 秒 · rpm</span></div>
+          <div class="auto-plot"><canvas id="auto-chart" role="img" aria-label="整定电机目标与实际转速"></canvas></div>
+          <p class="auto-empty">自动搜索 Kp / Ki，Kd 保持原值。板端统计指标；采样波形用于观察。通信心跳超时由板端结束试验。</p>
+        </article>
+      </div>
+      <article class="card auto-results-card"><h3>参数与复测对比</h3><p>复测评分改善至少 5% 才推荐采用。架空得到的参数需要落地带负载验证。</p>
+        <div class="auto-table-wrap"><table class="auto-table"><thead><tr><th>电机</th><th>原 Kp / Ki / Kd</th><th>推荐 Kp / Ki / Kd</th><th>基线 RMSE</th><th>复测 RMSE</th><th>结论</th></tr></thead><tbody id="auto-results"></tbody></table></div>
+        <div class="auto-footer"><p id="auto-persistence" role="status">候选参数仅用于试验，点击采用后才正式应用和保存。</p><div><button id="auto-sync" type="button" class="secondary-button" hidden>重试同步文件</button><button id="auto-save" type="button" class="secondary-button" hidden>重试板端保存</button><button id="auto-adopt" type="button" class="primary-button" disabled>采用并保存推荐参数</button></div></div>
+      </article>
+      <article class="card auto-results-card"><h3>试验记录</h3><p>限流超过 5% 的试验会剔除；零力、反馈异常或操纵遥控器会停止整定。</p><div class="auto-table-wrap"><table class="auto-table"><thead><tr><th>#</th><th>电机</th><th>阶段</th><th>Kp</th><th>Ki</th><th>Kd</th><th>RMSE · rpm</th><th>超调 · rpm</th><th>稳态误差 · rpm</th><th>稳定时间</th><th>状态</th></tr></thead><tbody id="auto-trials"></tbody></table></div></article>
+    </section>
+    <footer class="app-footer"><span>USB CDC · CSV v1 · 最近 10 分钟历史 · 默认显示 60 秒</span><span>在线调参 · 单轮自动整定 · 板端确认后同步项目文件</span></footer>
+  </main>
+  <dialog id="chart-dialog" class="chart-dialog" aria-labelledby="expanded-chart-title">
+    <div class="section-heading"><div><span class="eyebrow">WAVEFORM DETAIL</span><h2><span id="expanded-chart-title">波形详情</span> <small id="expanded-chart-unit"></small></h2></div><div class="chart-dialog-actions"><button type="button" class="secondary-button" id="reset-chart-button" disabled>恢复全图</button><button type="button" class="secondary-button" id="close-chart-button" autofocus>关闭 <span aria-hidden="true">×</span></button></div></div>
+    <div class="chart-legend" id="expanded-chart-legend"></div>
+    <div class="chart-layout expanded-chart-layout"><div class="chart-container"><canvas id="expanded-chart" role="img" aria-label="放大波形图"></canvas><div class="chart-empty" data-empty-chart><span class="empty-wave">∿</span><strong>等待第一帧数据</strong><span>连接 C 板或启动演示，即可观察实时曲线</span></div></div><div id="expanded-trace-picker"></div></div>
+    <div class="history-navigation"><div class="history-caption"><strong id="history-mode">实时跟随</strong><output id="history-readout"></output><button type="button" class="secondary-button" id="return-live-button">返回实时</button></div><label for="history-position">历史位置</label><input type="range" id="history-position" aria-label="历史位置" min="-60000" max="-60000" value="-60000" step="1" disabled></div>
+    <div class="chart-footer"><span id="expanded-chart-range">显示 60 s · Ctrl + 滚轮缩放</span><span>拖动平移 · Ctrl + 0 复位 · Esc 关闭</span></div>
+  </dialog>
+</body>
+</html>

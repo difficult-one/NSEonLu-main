@@ -5,12 +5,16 @@
 #include "stdlib.h"
 #include "daemon.h"
 #include "bsp_log.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 #define REMOTE_CONTROL_FRAME_SIZE 18u // 遥控器接收的buffer大小
 
 // 遥控器数据
 static RC_ctrl_t rc_ctrl[2];     //[0]:当前数据TEMP,[1]:上一次的数据LAST.用于按键持续按下和切换的判断
 static uint8_t rc_init_flag = 0; // 遥控器初始化标志位
+static uint8_t rc_has_sample;
+static uint32_t rc_last_rx_tick_ms;
 
 // 遥控器拥有的串口实例,因为遥控器是单例,所以这里只有一个,就不封装了
 static USARTInstance *rc_usart_instance;
@@ -95,6 +99,8 @@ static void RemoteControlRxCallback()
 {
     DaemonReload(rc_daemon_instance);         // 先喂狗
     sbus_to_rc(rc_usart_instance->recv_buff); // 进行协议解析
+    rc_last_rx_tick_ms = HAL_GetTick();
+    rc_has_sample = 1;
 }
 
 /**
@@ -133,4 +139,17 @@ uint8_t RemoteControlIsOnline()
     if (rc_init_flag)
         return DaemonIsOnline(rc_daemon_instance);
     return 0;
+}
+
+uint8_t RemoteControlGetSnapshot(RemoteControlSnapshot_s *snapshot)
+{
+    if (snapshot == NULL || !rc_init_flag) return 0;
+    taskENTER_CRITICAL();
+    snapshot->control = rc_ctrl[TEMP];
+    snapshot->last_rx_tick_ms = rc_last_rx_tick_ms;
+    snapshot->has_sample = rc_has_sample;
+    snapshot->online = rc_has_sample && DaemonIsOnline(rc_daemon_instance) &&
+        (uint32_t)(HAL_GetTick() - rc_last_rx_tick_ms) <= 100U;
+    taskEXIT_CRITICAL();
+    return 1;
 }

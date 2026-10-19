@@ -130,7 +130,7 @@ void Calibrate_MPU_Offset(IMU_Data_t *bmi088)
     {
         if (DWT_GetTimeline_s() - startTime > 12)
         {
-            // ��????
+            // 闂佽法鍠愰弸濠氬箯閿燂拷????
             bmi088->GyroOffset[0] = GxOFFSET;
             bmi088->GyroOffset[1] = GyOFFSET;
             bmi088->GyroOffset[2] = GzOFFSET;

@@ -63,8 +63,12 @@ MEMORY
 {
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
 CCMRAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 1024K
+/* Sectors 10/11 are a power-loss-safe parameter journal, excluded from load images. */
+FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 768K
 }
+__tuning_bank0_start__ = 0x080C0000;
+__tuning_bank1_start__ = 0x080E0000;
+ASSERT(ORIGIN(FLASH) + LENGTH(FLASH) <= __tuning_bank0_start__, "Tuning storage overlaps firmware")
 
 /* Define output sections */
 SECTIONS

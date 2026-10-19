@@ -29,7 +29,7 @@ link_directories(${CMAKE_SOURCE_DIR}/Middlewares/ST/ARM/DSP/Lib)
 
 # Generic compiler settings for optimization and basic link lib
 add_compile_options(-pipe ${MCU_FLAGS} -Wall -Werror -fmessage-length=0 # basic options
-                    -ffunction-sections -fdata-sections -fno-common # optimize options 
+                    -ffunction-sections -fdata-sections -fno-common -fstack-usage # optimize options
                     )
 add_link_options(-pipe ${MCU_FLAGS} -T${LINKER_SCRIPT} -Wl,--no-warn-rwx-segments # close RWX warning
                  -lm -lc -lnosys # lib options
@@ -44,6 +44,28 @@ add_definitions(
     -DSTM32F407xx 
     -DARM_MATH_CM4 
     ) # need -D<macro> to define macro
+
+if(DEFINED UART1_USE)
+    add_compile_definitions(UART1_USE=${UART1_USE})
+endif()
+
+if(DEFINED USB_TELEMETRY_ENABLE)
+    add_compile_definitions(USB_TELEMETRY_ENABLE=${USB_TELEMETRY_ENABLE})
+endif()
+
+if(DEFINED REFEREE_LEGACY_POWER_FIELDS_ENABLED)
+    add_compile_definitions(REFEREE_LEGACY_POWER_FIELDS_ENABLED=${REFEREE_LEGACY_POWER_FIELDS_ENABLED})
+endif()
+
+foreach(POWER_OPTION POWER_METER_ENABLE CHASSIS_POWER_CONTROL_STAGE CHASSIS_POWER_CAPTURE_ENABLE CHASSIS_SPIN_ADAPTIVE_ENABLE CHASSIS_SPIN_MODE CHASSIS_BUFFER_POWER_ENABLE CHASSIS_POWER_SOURCE_MODE)
+    if(DEFINED ${POWER_OPTION})
+        add_compile_definitions(${POWER_OPTION}=${${POWER_OPTION}})
+    endif()
+endforeach()
+
+if(DEFINED CHASSIS_POWER_CALIBRATION_ENABLE)
+    add_compile_definitions(CHASSIS_POWER_CALIBRATION_ENABLE=${CHASSIS_POWER_CALIBRATION_ENABLE})
+endif()
 
 # add inc
 # 递归包含头文件的函数

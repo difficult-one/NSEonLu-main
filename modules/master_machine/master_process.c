@@ -13,10 +13,14 @@
 #include "daemon.h"
 #include "bsp_log.h"
 #include "robot_def.h"
+#include "board_config.h"
+#include "usb_telemetry_config.h"
 
 static Vision_Recv_s recv_data;
 static Vision_Send_s send_data;
+#if defined(VISION_USE_UART) || (defined(VISION_USE_VCP) && !USB_TELEMETRY_ENABLE)
 static DaemonInstance *vision_daemon_instance;
+#endif
 
 void VisionSetFlag(Enemy_Color_e enemy_color, Work_Mode_e work_mode, Bullet_Speed_e bullet_speed)
 {
@@ -39,6 +43,7 @@ void VisionSetAltitude(float yaw, float pitch, float roll)
  *
  * @param id vision_usart_instance的地址,此处没用.
  */
+#if defined(VISION_USE_UART) || (defined(VISION_USE_VCP) && !USB_TELEMETRY_ENABLE)
 static void VisionOfflineCallback(void *id)
 {
 #ifdef VISION_USE_UART
@@ -46,6 +51,7 @@ static void VisionOfflineCallback(void *id)
 #endif // !VISION_USE_UART
     LOGWARNING("[vision] vision offline, restart communication.");
 }
+#endif
 
 #ifdef VISION_USE_UART
 
@@ -110,7 +116,7 @@ void VisionSend()
 
 #endif // VISION_USE_UART
 
-#ifdef VISION_USE_VCP
+#if defined(VISION_USE_VCP) && !USB_TELEMETRY_ENABLE
 
 #include "bsp_usb.h"
 static uint8_t *vis_recv_buff;
@@ -153,3 +159,13 @@ void VisionSend()
 }
 
 #endif // VISION_USE_VCP
+
+#if defined(VISION_USE_VCP) && USB_TELEMETRY_ENABLE && !defined(VISION_USE_UART)
+Vision_Recv_s *VisionInit(UART_HandleTypeDef *_handle)
+{
+    UNUSED(_handle);
+    return &recv_data;
+}
+
+void VisionSend(void) {}
+#endif

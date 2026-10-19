@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 
 static int failures;
 
@@ -134,6 +135,33 @@ static void TestDecodeRejectsBadLengthNanAndNullPointers(void)
 
 int main(void)
 {
+    const SuperCapCommand_s dynamic_command = {
+        .enable_dcdc = true, .referee_power_limit_w = 80,
+        .referee_buffer_energy_j = 60, .input_control_enabled = true,
+        .input_power_target_w = 110,
+    };
+    uint8_t dynamic_frame[8];
+    const uint8_t dynamic_expected[8] = {1, 80, 0, 60, 0, 110, 0, 0xA5};
+    ASSERT_TRUE(SuperCapProtocolEncodeCommand(&dynamic_command, dynamic_frame));
+    AssertBytes(dynamic_expected, dynamic_frame, 8);
+    SuperCapCommand_s disabled_dynamic = dynamic_command;
+    disabled_dynamic.enable_dcdc = false;
+    ASSERT_TRUE(SuperCapProtocolEncodeCommand(&disabled_dynamic, dynamic_frame));
+    ASSERT_EQ_INT(0, dynamic_frame[5]);
+    ASSERT_EQ_INT(0, dynamic_frame[7]);
+    const uint8_t input_frame[8] = {0, 0, 0xDC, 0x42, 110, 0, 1, 1};
+    SuperCapInputPower_s input_power = {0};
+    ASSERT_TRUE(SuperCapProtocolDecodeInputPower(input_frame, 8, &input_power));
+    ASSERT_NEAR(110, input_power.input_power_w, 0.001f);
+    ASSERT_EQ_INT(110, input_power.input_power_target_w);
+    ASSERT_TRUE(input_power.input_control_active);
+    uint8_t invalid_input[8];
+    memcpy(invalid_input, input_frame, 8);
+    invalid_input[6] = 2;
+    ASSERT_FALSE(SuperCapProtocolDecodeInputPower(invalid_input, 8, &input_power));
+    ASSERT_FALSE(SuperCapProtocolDecodeInputPower(input_frame, 7, &input_power));
+    const uint8_t nan_input[8] = {0, 0, 0xC0, 0x7F, 110, 0, 1, 1};
+    ASSERT_FALSE(SuperCapProtocolDecodeInputPower(nan_input, 8, &input_power));
     TestEncodeKnownCommand();
     TestEncodeDisabledCommandClearsFlagsAndReservedBytes();
     TestEncodeRejectsNullPointers();

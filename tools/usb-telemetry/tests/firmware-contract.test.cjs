@@ -1,0 +1,33 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { execFileSync } = require('node:child_process');
+const P = require('../protocol.js');
+const W = require('../../waveform-viewer/core.js');
+
+test('actual firmware CSV crosses arbitrary byte boundaries and displays correct units', () => {
+  const directory = path.resolve(__dirname, '../../..', 'tests/usb_telemetry');
+  execFileSync('make', ['-C', directory, 'all'], {stdio: 'pipe'});
+  const bytes = execFileSync(path.join(directory, 'test_format.exe'), ['--fixture']);
+  const received = [];
+  const errors = [];
+  const parser = new P.StreamParser({onSample: sample => received.push(sample), onError: error => errors.push(error)});
+  for (let offset = 0; offset < bytes.length; offset += 7) parser.push(bytes.subarray(offset, offset + 7));
+  assert.deepEqual(errors, []);
+  assert.equal(received.length, 1);
+  const sample = received[0];
+  assert.equal(sample.seq, 42);
+  assert.equal(sample.rc_lx, -660);
+  assert.equal(sample.rpm_lf, -1234);
+  assert.equal(P.displayValue(sample, 'p_meter_cw'), 12.34);
+  assert.equal(P.displayValue(sample, 'buffer_lower_cj'), 41.23);
+  assert.equal(P.displayValue(sample, 'cap_energy_pm'), 75);
+  assert.equal(P.displayValue(sample, 'vx_cmd_milli'), -1.25);
+  assert.equal(P.displayValue({...sample, meter_online: 0}, 'p_meter_cw'), null);
+  const store = new P.TelemetryStore();
+  store.add(sample, 20);
+  const offline = W.parseCsv(store.exportCSV());
+  assert.equal(offline.length, 1);
+  assert.equal(offline.columns.find(column => column.name === 'p_meter_cw').values[0], 1234);
+});

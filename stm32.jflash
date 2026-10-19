@@ -42,7 +42,7 @@
   EndianMode = 0
   ChipName = "ST STM32F407IG"
 [FLASH]
-  aRangeSel[1] = 0-11
+  aRangeSel[1] = 0-9
   BankName = "Internal flash"
   BankSelMode = 1
   BaseAddr = 0x08000000

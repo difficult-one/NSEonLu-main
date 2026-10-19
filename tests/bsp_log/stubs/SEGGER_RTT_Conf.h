@@ -1,0 +1,4 @@
+#ifndef TEST_SEGGER_RTT_CONF_H
+#define TEST_SEGGER_RTT_CONF_H
+
+#endif

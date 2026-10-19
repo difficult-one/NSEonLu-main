@@ -130,4 +130,13 @@ RC_ctrl_t *RemoteControlInit(UART_HandleTypeDef *rc_usart_handle);
  */
 uint8_t RemoteControlIsOnline();
 
+typedef struct {
+    RC_ctrl_t control;
+    uint32_t last_rx_tick_ms;
+    uint8_t has_sample;
+    uint8_t online;
+} RemoteControlSnapshot_s;
+/* Short, coherent copy; the returned values are independent of internal storage. */
+uint8_t RemoteControlGetSnapshot(RemoteControlSnapshot_s *snapshot);
+
 #endif

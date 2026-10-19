@@ -55,15 +55,44 @@ typedef struct
     PowerModelStatus_e status;
 } ChassisPowerOutput_s;
 
+typedef struct
+{
+    float predicted_unlimited_power_w;
+    float predicted_limited_power_w;
+    float effective_limit_w;
+} Chassis_Power_Control_Data_s;
+
+typedef struct
+{
+    float current_command[POWER_MODEL_MOTOR_COUNT];
+    float actual_speed_rpm[POWER_MODEL_MOTOR_COUNT];
+    float target_speed_rpm[POWER_MODEL_MOTOR_COUNT];
+    float predicted_power_w[POWER_MODEL_MOTOR_COUNT];
+    float predicted_total_power_w;
+    uint8_t motor_enabled_mask;
+} ChassisPowerTelemetry_s;
+
 bool PowerModelConfigIsValid(const MotorPowerModelConfig_s *config);
+/* Largest x in [0,max_scale] satisfying a*x*x+b*x+c <= 0. */
+bool PowerModelFindFeasibleScale(float a, float b, float c, float max_scale, float *scale);
+bool PowerModelRecomputeFinal(const MotorPowerModelConfig_s models[4],
+    const ChassisPowerInput_s *input, const float final_current[4], ChassisPowerOutput_s *output);
 bool ChassisPowerAlgorithmConfigIsValid(const ChassisPowerAlgorithmConfig_s *config);
 float PowerModelSelectLimit(float referee_limit_w, float fallback_limit_w);
 float PowerModelPredict(const MotorPowerModelConfig_s *config,
                         float current_command,
                         float speed_rpm);
 bool PowerModelApply(const MotorPowerModelConfig_s models[POWER_MODEL_MOTOR_COUNT],
-                     const ChassisPowerAlgorithmConfig_s *config,
-                     const ChassisPowerInput_s *input,
-                     ChassisPowerOutput_s *output);
+                      const ChassisPowerAlgorithmConfig_s *config,
+                      const ChassisPowerInput_s *input,
+                      ChassisPowerOutput_s *output);
+bool ChassisPowerFeedbackInit(void);
+void ChassisPowerFeedbackUpdate(bool registered,
+                                const ChassisPowerOutput_s *power);
+bool ChassisPowerFeedbackGet(Chassis_Power_Control_Data_s *feedback);
+bool ChassisPowerTelemetryBuild(const ChassisPowerInput_s *input,
+                                const ChassisPowerOutput_s *power,
+                                const bool output_enabled[POWER_MODEL_MOTOR_COUNT],
+                                ChassisPowerTelemetry_s *telemetry);
 
 #endif // POWER_MODEL_H

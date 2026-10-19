@@ -1,26 +1,20 @@
 {
     "configurations": [
         {
-            "name": "STM32F407IG",
-            "compilerPath": "D:\\Arm_GNU_Toolchain\\13.3 rel1\\bin\\arm-none-eabi-gcc.exe",
-            "compilerArgs": [
-                "-mcpu=cortex-m4",
-                "-mthumb",
-                "-mfpu=fpv4-sp-d16",
-                "-mfloat-abi=hard"
-            ],
+            "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/**"
             ],
             "defines": [
-                "USE_HAL_DRIVER",
-                "STM32F407xx",
-                "ARM_MATH_CM4",
-                "DISABLE_LOG_SYSTEM"
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
             ],
-            "cStandard": "c11",
+            "cStandard": "c17",
             "cppStandard": "gnu++14",
-            "intelliSenseMode": "windows-gcc-arm"
+            "intelliSenseMode": "windows-gcc-x86",
+            "configurationProvider": "ms-vscode.makefile-tools",
+            "compileCommands": "${workspaceFolder}/build/compile_commands.json"
         }
     ],
     "version": 4

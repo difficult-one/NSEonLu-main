@@ -94,7 +94,7 @@ typedef enum
 	LEN_event_data = 4,							 // 0x0101
 	LEN_supply_projectile_action = 4,			 // 0x0102
 	LEN_game_robot_state = 13,					 // 0x0201
-	LEN_power_heat_data = 16,					 // 0x0202
+	LEN_power_heat_data = 14,					 // 0x0202
 	LEN_game_robot_pos = 16,					 // 0x0203
 	LEN_buff_musk = 6,							 // 0x0204
 	LEN_aerial_robot_energy = 2,				 // 0x0205
@@ -173,17 +173,21 @@ typedef struct
 	uint8_t power_management_shooter_output : 1; 
 } ext_game_robot_state_t;
 
-/* ID: 0X0202  Byte: 16    实时功率热量数据 */
+/* ID: 0X0202  Byte: 14    实时功率热量数据 */
 typedef struct
 {
-	uint16_t chassis_voltage; 
-	uint16_t chassis_current; 
-	float chassis_power; 
+	uint16_t reserved_voltage;
+	uint16_t reserved_current;
+	float reserved_power;
 	uint16_t buffer_energy; 
-	uint16_t shooter_17mm_1_barrel_heat; 
-	uint16_t shooter_17mm_2_barrel_heat; 
-	uint16_t shooter_42mm_barrel_heat; 
+	uint16_t shooter_17mm_barrel_heat;
+	uint16_t shooter_42mm_barrel_heat;
 } ext_power_heat_data_t;
+
+_Static_assert(sizeof(ext_game_robot_state_t) == LEN_game_robot_state,
+			   "0x0201 payload layout mismatch");
+_Static_assert(sizeof(ext_power_heat_data_t) == LEN_power_heat_data,
+			   "0x0202 payload layout mismatch");
 
 /* ID: 0x0203  Byte: 16    机器人位置数据 */
 typedef struct

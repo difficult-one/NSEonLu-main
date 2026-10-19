@@ -1,0 +1,34 @@
+async (page) => {
+  const failures = [];
+  const check = (condition, message) => { if (!condition) failures.push(message); };
+  await page.reload();
+  await page.getByLabel('CSV 数据').fill('tick,v\n10000001,123456789\n10000002,123456790');
+  await page.getByRole('button', { name: '读取并绘图', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#data-status').textContent.includes('2 行'));
+  let chart = await page.locator('#waveform-chart').boundingBox();
+  await page.mouse.move(chart.x + 72.1, chart.y + chart.height / 2);
+  await page.waitForFunction(() => !document.querySelector('#tooltip').hidden);
+  const precise = await page.locator('#tooltip').innerText();
+  check(precise.includes('原始值 123456789') && precise.includes('tick (ms) 10000001'), 'Tooltip rounds away original-value or tick precision');
+  await page.locator('#paste-section summary').click();
+  const names = Array.from({ length: 26 }, (_, i) => 'field_' + i);
+  const row = names.map((_, i) => i).join(',');
+  await page.getByLabel('CSV 数据').fill('tick,' + names.join(',') + '\n0,' + row + '\n10,' + row);
+  await page.getByRole('button', { name: '读取并绘图', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#data-status').textContent.includes('27 个字段'));
+  for (const name of names) await page.getByLabel('显示 ' + name, { exact: true }).check();
+  await page.waitForFunction(() => document.querySelectorAll('#legend .legend-item').length === 26);
+  chart = await page.locator('#waveform-chart').boundingBox();
+  await page.mouse.move(chart.x + 72 + (chart.width - 96) / 2, chart.y + chart.height / 2);
+  await page.waitForFunction(() => !document.querySelector('#tooltip').hidden);
+  const tooltip = await page.locator('#tooltip').boundingBox();
+  const range = await page.locator('#visible-range').textContent();
+  check(await page.locator('#tooltip').evaluate(node => node.scrollHeight > node.clientHeight), 'Fixture must produce an overflowing tooltip');
+  await page.mouse.move(tooltip.x + tooltip.width / 2, tooltip.y + 35);
+  await page.mouse.wheel(0, 800);
+  await page.waitForTimeout(200);
+  check(await page.locator('#tooltip').evaluate(node => !node.hidden && node.scrollTop > 0), 'All selected field values must be accessible by scrolling the tooltip');
+  check((await page.locator('#visible-range').textContent()) === range, 'Scrolling the tooltip must not zoom the chart');
+  if (failures.length) throw new Error(failures.join('; '));
+  return { passed: true, cases: ['full numeric precision', '26-field scrollable tooltip', 'tooltip scrolling does not zoom'] };
+}

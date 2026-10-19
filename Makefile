@@ -116,6 +116,7 @@ bsp/can/bsp_can.c \
 bsp/usart/bsp_usart.c \
 bsp/usb/bsp_usb.c \
 bsp/log/bsp_log.c \
+bsp/log/bsp_uart_log.c \
 bsp/flash/bsp_flash.c \
 bsp/bsp_tools.c \
 modules/algorithm/controller.c \
@@ -139,16 +140,35 @@ modules/motor/DMmotor/dmmotor.c \
 modules/motor/step_motor/step_motor.c \
 modules/motor/servo_motor/servo_motor.c \
 modules/motor/motor_task.c \
+modules/telemetry/rtt_telemetry.c \
+modules/telemetry/usb_telemetry.c \
+modules/telemetry/usb_telemetry_format.c \
+modules/telemetry/usb_telemetry_stream.c \
+modules/telemetry/runtime_tuning.c \
+modules/telemetry/pid_autotune.c \
+modules/telemetry/autotune_protocol.c \
+modules/telemetry/tuning_storage.c \
+modules/telemetry/tuning_flash.c \
+modules/telemetry/chassis_power_capture.c \
 modules/algorithm/power_model.c \
+modules/algorithm/chassis_kinematics.c \
+modules/algorithm/chassis_spin.c \
 modules/algorithm/chassis_power_budget.c \
+modules/algorithm/chassis_power_outer_loop.c \
+modules/algorithm/chassis_power_transient.c \
 modules/oled/oled.c \
 modules/referee/crc_ref.c \
+modules/referee/referee_stream_parser.c \
+modules/referee/referee_power.c \
 modules/referee/rm_referee.c \
 modules/referee/referee_UI.c \
 modules/referee/referee_task.c \
 modules/remote/remote_control.c \
 modules/super_cap/super_cap_protocol.c \
 modules/super_cap/super_cap.c \
+modules/super_cap/chassis_power_link.c \
+modules/power_meter/power_meter_protocol.c \
+modules/power_meter/power_meter.c \
 modules/can_comm/can_comm.c \
 modules/message_center/message_center.c \
 modules/daemon/daemon.c \
@@ -211,6 +231,47 @@ C_DEFS =  \
 -DARM_MATH_CM4 \
 -DDISABLE_LOG_SYSTEM 
 
+ifneq ($(strip $(POWER_METER_ENABLE)),)
+C_DEFS += -DPOWER_METER_ENABLE=$(POWER_METER_ENABLE)
+endif
+
+ifneq ($(strip $(CHASSIS_POWER_CONTROL_STAGE)),)
+C_DEFS += -DCHASSIS_POWER_CONTROL_STAGE=$(CHASSIS_POWER_CONTROL_STAGE)
+endif
+ifneq ($(strip $(CHASSIS_POWER_CAPTURE_ENABLE)),)
+C_DEFS += -DCHASSIS_POWER_CAPTURE_ENABLE=$(CHASSIS_POWER_CAPTURE_ENABLE)
+endif
+
+ifneq ($(strip $(CHASSIS_SPIN_ADAPTIVE_ENABLE)),)
+C_DEFS += -DCHASSIS_SPIN_ADAPTIVE_ENABLE=$(CHASSIS_SPIN_ADAPTIVE_ENABLE)
+endif
+ifneq ($(strip $(CHASSIS_SPIN_MODE)),)
+C_DEFS += -DCHASSIS_SPIN_MODE=$(CHASSIS_SPIN_MODE)
+endif
+
+ifneq ($(strip $(CHASSIS_BUFFER_POWER_ENABLE)),)
+C_DEFS += -DCHASSIS_BUFFER_POWER_ENABLE=$(CHASSIS_BUFFER_POWER_ENABLE)
+endif
+ifneq ($(strip $(CHASSIS_POWER_SOURCE_MODE)),)
+C_DEFS += -DCHASSIS_POWER_SOURCE_MODE=$(CHASSIS_POWER_SOURCE_MODE)
+endif
+
+ifneq ($(strip $(UART1_USE)),)
+C_DEFS += -DUART1_USE=$(UART1_USE)
+endif
+
+ifneq ($(strip $(USB_TELEMETRY_ENABLE)),)
+C_DEFS += -DUSB_TELEMETRY_ENABLE=$(USB_TELEMETRY_ENABLE)
+endif
+
+ifneq ($(strip $(REFEREE_LEGACY_POWER_FIELDS_ENABLED)),)
+C_DEFS += -DREFEREE_LEGACY_POWER_FIELDS_ENABLED=$(REFEREE_LEGACY_POWER_FIELDS_ENABLED)
+endif
+
+ifneq ($(strip $(CHASSIS_POWER_CALIBRATION_ENABLE)),)
+C_DEFS += -DCHASSIS_POWER_CALIBRATION_ENABLE=$(CHASSIS_POWER_CALIBRATION_ENABLE)
+endif
+
 # AS includes
 AS_INCLUDES =  \
 -IInc
@@ -260,10 +321,12 @@ C_INCLUDES =  \
 -Imodules/motor/servo_motor \
 -Imodules/motor/DMmotor \
 -Imodules/motor \
+-Imodules/telemetry \
 -Imodules/oled \
 -Imodules/referee \
 -Imodules/remote \
 -Imodules/super_cap \
+-Imodules/power_meter \
 -Imodules/can_comm \
 -Imodules/message_center \
 -Imodules/daemon \
@@ -275,7 +338,7 @@ C_INCLUDES =  \
 # compile gcc flags
 ASFLAGS = $(MCU) $(AS_DEFS) $(AS_INCLUDES) $(OPT) -fdata-sections -ffunction-sections
 
-CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -fdata-sections -ffunction-sections -fmessage-length=0 -Werror
+CFLAGS += $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -fdata-sections -ffunction-sections -fmessage-length=0 -fstack-usage -Werror
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2

@@ -32,6 +32,7 @@ typedef struct
 {
     uint8_t recv_buff[USART_RXBUFF_LIMIT]; // 预先定义的最大buff大小,如果太小请修改USART_RXBUFF_LIMIT
     uint8_t recv_buff_size;                // 模块接收一包数据的大小
+    uint16_t recv_data_len;                // 最近一次DMA/IDLE事件实际收到的字节数
     UART_HandleTypeDef *usart_handle;      // 实例对应的usart_handle
     usart_module_callback module_callback; // 解析收到的数据的回调函数
 } usart_instance;
@@ -40,6 +41,8 @@ typedef struct
 - `DEVICE_USART_CNT`是开发板上可用的串口数量。
 
 - `USART_RXBUFF_LIMIT`是串口单次接收的数据长度上限，暂时设为128，如果需要更大的buffer容量，修改该值。
+
+- `recv_data_len`是最近一次DMA/IDLE事件实际收到的字节数，仅在`module_callback()`执行期间有效，回调返回后清零。
 
 - `usart_module_callback()`是模块提供给串口接收中断回调函数使用的协议解析函数指针。对于每个需要串口的模块，需要定义一个这样的函数用于解包数据。
 
@@ -77,4 +80,4 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
 
 - `USARTServiceInit()`会被`USARTRegister()`调用，开启接收中断
 
-- `HAL_UARTEx_RxEventCallback()`和`HAL_UART_ErrorCallback()`都是对HAL的回调函数的重定义（原本的callback是`__week`修饰的弱定义），前者在发生**IDLE中断**或**单次DMA传输中断**后会被调用（说明收到了完整的一包数据），随后在里面根据中断来源，调用拥有产生了该中断的模块的协议解析函数进行数据解包；后者在串口传输出错的时候会被调用，重新开启接收。
+- `HAL_UARTEx_RxEventCallback()`和`HAL_UART_ErrorCallback()`都是对HAL的回调函数的重定义（原本的callback是`__week`修饰的弱定义）。前者在发生**IDLE中断**或**单次DMA传输中断**后会被调用，并把本次实际长度写入`recv_data_len`后调用对应模块的协议解析函数。IDLE只表示当前数据块结束，不表示一个协议帧必然完整；模块需要自行处理拆帧和粘帧。后者在串口传输出错时重新开启接收。

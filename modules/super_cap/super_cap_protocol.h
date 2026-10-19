@@ -6,6 +6,9 @@
 
 #define SUPERCAP_COMMAND_CAN_ID 0x061U
 #define SUPERCAP_STATUS_CAN_ID 0x051U
+#define SUPERCAP_INPUT_POWER_CAN_ID 0x052U
+#define SUPERCAP_INPUT_COMMAND_TAG 0xA5U
+#define SUPERCAP_INPUT_FEEDBACK_VERSION 1U
 #define SUPERCAP_CAN_DLC 8U
 
 #define SUPERCAP_ERROR_UNDER_VOLTAGE 0x01U
@@ -23,7 +26,18 @@ typedef struct
     bool enable_dcdc;
     uint16_t referee_power_limit_w;
     uint16_t referee_buffer_energy_j;
+    bool input_control_enabled;
+    uint16_t input_power_target_w;
 } SuperCapCommand_s;
+
+typedef struct
+{
+    float input_power_w;
+    uint16_t input_power_target_w;
+    bool input_control_active;
+    bool online;
+    uint32_t last_rx_tick_ms;
+} SuperCapInputPower_s;
 
 typedef struct
 {
@@ -33,6 +47,7 @@ typedef struct
     float chassis_power_w;
     uint16_t available_power_limit_w;
     float energy_ratio;
+    uint32_t last_rx_tick_ms;
 } SuperCapStatus_s;
 
 bool SuperCapProtocolEncodeCommand(const SuperCapCommand_s *command,
@@ -40,5 +55,7 @@ bool SuperCapProtocolEncodeCommand(const SuperCapCommand_s *command,
 bool SuperCapProtocolDecodeStatus(const uint8_t frame[SUPERCAP_CAN_DLC],
                                   uint8_t dlc,
                                   SuperCapStatus_s *status);
+bool SuperCapProtocolDecodeInputPower(const uint8_t frame[SUPERCAP_CAN_DLC],
+                                      uint8_t dlc, SuperCapInputPower_s *power);
 
 #endif

@@ -32,7 +32,7 @@
 #define mcos(x) (arm_cos_f32(x))
 
 typedef arm_matrix_instance_f32 mat;
-// 若运算速度不够,可以使用q31代替f32,但是精度会降低
+// 鑻ヨ繍绠楅€熷害涓嶅,鍙互浣跨敤q31浠ｆ浛f32,浣嗘槸绮惧害浼氶檷浣�
 #define MatAdd arm_mat_add_f32
 #define MatSubtract arm_mat_sub_f32
 #define MatMultiply arm_mat_mult_f32
@@ -85,28 +85,28 @@ void MatInit(mat *m, uint8_t row, uint8_t col);
 #define VAL_MAX(a, b) ((a) > (b) ? (a) : (b))
 
 /**
- * @brief 返回一块干净的内�?,不过仍然需要强制转�?为你需要的类型
+ * @brief 杩斿洖涓€鍧楀共鍑€鐨勫唴锟�?,涓嶈繃浠嶇劧闇€瑕佸己鍒惰浆锟�?涓轰綘闇€瑕佺殑绫诲瀷
  *
- * @param size 分配大小
+ * @param size 鍒嗛厤澶у皬
  * @return void*
  */
 void *zmalloc(size_t size);
 
-// ���ٿ���
+// 锟斤拷锟劫匡拷锟斤拷
 float Sqrt(float x);
-// ��������
+// 锟斤拷锟斤拷锟斤拷锟斤拷
 float abs_limit(float num, float Limit);
-// �жϷ���λ
+// 锟叫断凤拷锟斤拷位
 float sign(float value);
-// ��������
+// 锟斤拷锟斤拷锟斤拷锟斤拷
 float float_deadband(float Value, float minValue, float maxValue);
-// �޷�����
+// 锟睫凤拷锟斤拷锟斤拷
 float float_constrain(float Value, float minValue, float maxValue);
-// �޷�����
+// 锟睫凤拷锟斤拷锟斤拷
 int16_t int16_constrain(int16_t Value, int16_t minValue, int16_t maxValue);
-// ѭ���޷�����
+// 循锟斤拷锟睫凤拷锟斤拷锟斤拷
 float loop_float_constrain(float Input, float minValue, float maxValue);
-// �Ƕ� ���޷� 180 ~ -180
+// 锟角讹拷 锟斤拷锟睫凤拷 180 ~ -180
 float theta_format(float Ang);
 
 int float_rounding(float raw);

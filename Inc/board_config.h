@@ -1,0 +1,28 @@
+#ifndef BOARD_CONFIG_H
+#define BOARD_CONFIG_H
+
+/* USART1 is exclusive: referee, UART log, or UART log plus RTT. */
+#define UART1_USE_REFEREE 0
+#define UART1_USE_LOG     1
+#define UART1_USE_LOG_RTT 2
+
+#ifndef UART1_USE
+#define UART1_USEUART1_USE_REFEREE
+#endif
+#endif
+
+#if UART1_USE != UART1_USE_REFEREE && \
+    UART1_USE != UART1_USE_LOG && \
+    UART1_USE != UART1_USE_LOG_RTT
+#error UART1_USE must be UART1_USE_REFEREE, UART1_USE_LOG, or UART1_USE_LOG_RTT
+#endif
+
+#define UART1_REFEREE_ENABLED (UART1_USE == UART1_USE_REFEREE)
+#define UART1_LOG_ENABLED     (UART1_USE != UART1_USE_REFEREE)
+#define UART1_RTT_ENABLED     (UART1_USE != UART1_USE_LOG)
+
+#if UART1_LOG_ENABLED && defined(VISION_USE_UART)
+#error VISION_USE_UART cannot share USART1 with UART logging
+#endif
+
+

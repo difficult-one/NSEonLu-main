@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>波形工作台 · 本地平滑绘图</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="core.js" defer></script>
+  <script src="plot.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M3 17h4l3-9 5 17 5-20 4 12h5"/></svg></div>
+      <div><h1>波形工作台</h1><p>把采样数据，变成看得清的曲线。</p></div>
+    </div>
+    <span class="local-badge"><span></span>离线可用 · 数据留在本机</span>
+  </header>
+
+  <main class="workspace">
+    <aside class="sidebar" aria-label="数据与字段设置">
+      <section class="card import-card">
+        <div class="section-heading"><h2>导入数据</h2><span class="eyebrow">CSV / TXT</span></div>
+        <label class="file-button" for="file-input"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m-4 4 4-4 4 4M4 15v5h16v-5"/></svg>打开数据文件</label>
+        <input id="file-input" type="file" accept=".csv,.txt,.log,text/csv,text/plain" aria-label="打开数据文件">
+        <details id="paste-section" open>
+          <summary>或粘贴 CSV 数据</summary>
+          <label class="sr-only" for="csv-input">CSV 数据</label>
+          <textarea id="csv-input" spellcheck="false" placeholder="tick,p_meter_cw,p_filtered_cw&#10;0,2400,2350&#10;10,2600,2400&#10;20,2500,2420"></textarea>
+          <button id="parse-button" class="primary-button" type="button">读取并绘图 <span aria-hidden="true">↗</span></button>
+        </details>
+        <button id="sample-button" class="text-button" type="button">先用示例数据试一试 <span aria-hidden="true">→</span></button>
+        <p id="import-error" class="message error" role="alert" hidden></p>
+        <p id="import-notice" class="message notice" role="status" hidden></p>
+      </section>
+
+      <section class="card fields-card">
+        <div class="section-heading"><h2>选择字段</h2><span id="field-count" class="count-badge">0</span></div>
+        <p class="section-description">勾选叠加曲线，按字段单独设置滤波。</p>
+        <div id="field-list" class="field-list"><p class="fields-placeholder">导入数据后，这里会列出字段。</p></div>
+        <div class="filter-explanation"><span class="info-icon" aria-hidden="true">i</span><p>平滑连线不改变数值。额外滤波默认关闭，已有滤波字段可以直接查看。</p></div>
+      </section>
+    </aside>
+
+    <section class="visualization" aria-label="波形预览">
+      <div class="preview-heading"><div><span class="eyebrow">WAVEFORM VIEW</span><h2>波形预览</h2></div><span id="data-status" role="status">尚未导入数据</span></div>
+      <section class="card chart-card">
+        <div class="chart-toolbar">
+          <div class="axis-control"><label for="x-axis">横轴</label><select id="x-axis" disabled><option value="-1">采样序号</option></select></div>
+          <div class="chart-actions"><label class="points-toggle"><input id="show-points" type="checkbox">显示采样点</label><button id="reset-view" class="secondary-button" type="button" disabled>恢复全图</button></div>
+        </div>
+        <div id="legend" class="legend" aria-label="当前显示的曲线"><span class="legend-placeholder">选择字段后显示图例</span></div>
+        <div id="chart-container" class="chart-container">
+          <canvas id="waveform-chart" tabindex="0" role="img" aria-label="波形图" aria-describedby="chart-help"></canvas>
+          <canvas id="chart-overlay" aria-hidden="true"></canvas>
+          <div id="chart-empty" class="chart-empty"><div class="empty-symbol" aria-hidden="true">∿</div><strong>导入数据，开始观察波形</strong><p>选择一个或多个字段，让变化一目了然。</p></div>
+          <div id="tooltip" class="chart-tooltip" tabindex="0" aria-label="采样值详情" hidden></div>
+        </div>
+        <div class="chart-footer"><span id="visible-range">横轴范围 —</span><span id="chart-help">滚轮缩放 · 拖动平移 · 悬停查看数值</span></div>
+      </section>
+      <div class="workspace-note"><span class="note-dot"></span><p>曲线使用平滑连线，保留数据原始单位；开启额外滤波时可对比原始值与处理后的值。</p></div>
+    </section>
+  </main>
+  <footer class="app-footer"><span>本地波形工具</span><span>无需联网，也无需上传数据。</span></footer>
+</body>
+</html>

@@ -5,6 +5,10 @@
 #include "SEGGER_RTT_Conf.h"
 #include <stdio.h>
 
+#ifndef DISABLE_LOG_SYSTEM
+#define DISABLE_LOG_SYSTEM 0
+#endif
+
 #define BUFFER_INDEX 0
 
 /**
@@ -13,21 +17,27 @@
  */
 void BSPLogInit();
 
+/** @brief 向当前板级配置的日志出口写入原始字节 */
+unsigned BSPLogWrite(const void *data, unsigned length);
+
+/** @brief 向当前板级配置的日志出口写入字符串 */
+unsigned BSPLogWriteString(const char *text);
+
+/** @brief 清空 RTT 终端显示 */
+void BSPLogClear(void);
+
 /**
  * @brief 日志功能原型,供下面的LOGI,LOGW,LOGE等使用
  *
  */
-#define LOG_PROTO(type, color, format, ...)                       \
-        SEGGER_RTT_printf(BUFFER_INDEX, "  %s%s" format "\r\n%s", \
-                          color,                                  \
-                          type,                                   \
-                          ##__VA_ARGS__,                          \
-                          RTT_CTRL_RESET)
+#define LOG_PROTO(type, color, format, ...)              \
+    PrintLog("  %s%s" format "\r\n%s",                 \
+             color, type, ##__VA_ARGS__, RTT_CTRL_RESET)
 
 /*----------------------------------------下面是日志输出的接口-------------------------------------------------*/
 
 /* 清屏 */
-#define LOG_CLEAR() SEGGER_RTT_WriteString(0, "  " RTT_CTRL_CLEAR)
+#define LOG_CLEAR() BSPLogClear()
 
 /* 无颜色日志输出 */
 #define LOG(format, ...) LOG_PROTO("", "", format, ##__VA_ARGS__)
@@ -51,7 +61,7 @@ void BSPLogInit();
 #endif //  DISABLE_LOG_SYSTEM
 
 /**
- * @brief 通过segger RTT打印日志,支持格式化输出,格式化输出的实现参考printf.
+ * @brief 通过当前板级配置的日志出口打印格式化日志.
  * @attention !! 此函数不支持浮点格式化,若有需要,请使用Float2Str()函数进行转换后再打印 !!
  *
  * @param fmt 格式字符串

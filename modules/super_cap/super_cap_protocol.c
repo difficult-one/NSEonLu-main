@@ -37,6 +37,11 @@ bool SuperCapProtocolEncodeCommand(const SuperCapCommand_s *command,
         frame[0] = 0x01U;
     WriteU16LE(&frame[1], command->referee_power_limit_w);
     WriteU16LE(&frame[3], command->referee_buffer_energy_j);
+    if (command->enable_dcdc && command->input_control_enabled)
+    {
+        WriteU16LE(&frame[5], command->input_power_target_w);
+        frame[7] = SUPERCAP_INPUT_COMMAND_TAG;
+    }
     return true;
 }
 
@@ -60,5 +65,23 @@ bool SuperCapProtocolDecodeStatus(const uint8_t frame[SUPERCAP_CAN_DLC],
         .energy_ratio = (float)frame[7] / 255.0f,
     };
     *status = decoded;
+    return true;
+}
+
+bool SuperCapProtocolDecodeInputPower(const uint8_t frame[SUPERCAP_CAN_DLC],
+                                      uint8_t dlc, SuperCapInputPower_s *power)
+{
+    if (frame == NULL || power == NULL || dlc != SUPERCAP_CAN_DLC ||
+        frame[6] != SUPERCAP_INPUT_FEEDBACK_VERSION || (frame[7] & ~1U) != 0)
+        return false;
+    const float measured = ReadF32LE(frame);
+    if (!isfinite(measured))
+        return false;
+    *power = (SuperCapInputPower_s){
+        .input_power_w = measured,
+        .input_power_target_w = ReadU16LE(&frame[4]),
+        .input_control_active = (frame[7] & 1U) != 0,
+        .online = true,
+    };
     return true;
 }
